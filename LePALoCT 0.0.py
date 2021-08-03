@@ -15,8 +15,8 @@ translations = {'FR': {0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dan
 
 
 class Plane:
-    # 0 area, 1 stock_mod, 2 cat, 3 player, 4 craft_name, 5 nbr_b_gived, 6 nbr_b_received, 7 nbr_m_gived, 8 nbr_m_received, 9 nbr_r_gived, 10 nbr_r_received, 11 b_damages_gived, 12 b_damages_received, 13 m_damages_gived, 14 m_damages_received, 15 parts_destructed_r_gived, 16 parts_destructed_r_received, 17 nbr_clean_kill_b_gived, 18 nbr_clean_kill_b_received, 19 nbr_clean_kill_m_gived, 20 nbr_clean_kill_m_received, 21 nbr_clean_kill_r_gived, 22 nbr_clean_kill_r_received, 23 alive, 24 suicide, 25 mia, 26 b_fired, 27 b_hit, 28 death_order, 29 dead_time, 30 hp, 31 team
-    def __init__(self, area, stock_mod, cat, player, craft_name,
+    # 0 area, 1 cat, 2 player, 3 craft_name, 4 nbr_b_gived, 5 nbr_b_received, 6 nbr_m_gived, 7 nbr_m_received, 8 nbr_r_gived, 9 nbr_r_received, 10 b_damages_gived, 11 b_damages_received, 12 m_damages_gived, 13 m_damages_received, 14 parts_destructed_r_gived, 15 parts_destructed_r_received, 16 nbr_clean_kill_b_gived, 17 nbr_clean_kill_b_received, 18 nbr_clean_kill_m_gived, 19 nbr_clean_kill_m_received, 20 nbr_clean_kill_r_gived, 21 nbr_clean_kill_r_received, 22 alive, 23 suicide, 24 mia, 25 b_fired, 26 b_hit, 27 death_order, 28 dead_time, 29 hp, 30 team
+    def __init__(self, area, cat, player, craft_name,
                  nbr_b_gived, nbr_b_received, nbr_m_gived, nbr_m_received,
                  nbr_r_gived, nbr_r_received,
                  b_damages_gived, b_damages_received, m_damages_gived, m_damages_received,
@@ -27,7 +27,6 @@ class Plane:
                  alive, suicide, mia, b_fired, b_hit, death_order, dead_time, hp, team
                  ):
         self.area = area
-        self.stock_mod = stock_mod
         self.cat = cat
         self.player = player
         self.craft_name = craft_name
@@ -59,6 +58,10 @@ class Plane:
         self.hp = hp
         self.team = team
 
+    def define_accuracy(self, hit: int, fired: int):
+        self.b_hit = hit
+        self.b_fired = fired
+
 
 class Tournament:
     def __init__(self, duration: int, max_duration: int, planes: Dict[str, Plane]):
@@ -88,6 +91,24 @@ def name_separator(name: str) -> Tuple[str, str, str, str, Union[str, None]]:
     return m['area'], m['cat'], m['player'], n['craft_name'], team
 
 
+def create_plane(name: str, dead_time: float):
+    area, cat, player, craft_name, team = name_separator(name)
+    return Plane(area, cat, player, craft_name, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                 0, dead_time, team)
+
+
+def analyse_several_crafts(event: str) -> Tuple[str, float, Tuple[str, float], List[Tuple[str, float]]]:
+    m = re.match(r'(?P<victim>[^:]+):(?P<queue>.+)$', event)
+    victim: str = m['victim']
+    total_damages: float = 0
+    killers: List[Tuple[str, float]] = []
+    while m is not None:
+        m = re.match(r'(?P<damages>[^:]+):(?P<killer>[^:]+):(?P<queue>[^:]+)', m['queue'])
+        killers.append((m['killer'], int(m['damages'])))
+        total_damages += int(m['damages'])
+    return victim, total_damages, killers[0], killers[1:]
+
+
 def analyse_regular_line(line: str, heat: Heat) -> Heat:
     m = re.match(r'\[.+]: (?P<e_type>[A-Z]+):(?P<event>.+)$', line)
     if m is None:
@@ -98,15 +119,50 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
     print(f'#{e_type} {event}')
     if e_type == 'ALIVE':
         if event[:7] not in ('Débris', 'DÃ©bris') and event[-5:] not in ('Avion', 'avion'):
-            heat.planes[event].dead_time = -1
-            heat.planes[event] = Plane()
-    if e_type == 'DEAD':
+            heat.planes[event] = create_plane(event, -1)
+    elif e_type == 'DEAD':
         m = re.match(r'(?P<death_order>\d+):(?P<s>\d+).(?P<ds>\d+):(?P<name>.*)$', event)
-        heat.planes[m['name']].dead_time = int(m['s']) + int(m['ds']) * 0.1
+        heat.planes[m['name']] = create_plane(m['name'], int(m['s']) + int(m['ds']) * 0.1)
         heat.planes[m['name']].suicide = 1
-    if e_type == 'MIA':
+    elif e_type == 'MIA':
         pass
-
+    elif e_type == 'ACCURACY':
+        m = re.match(r'(?P<name>[^:]+):(?P<hit>\d+)/(?P<fired>\d+)', event)
+        heat.planes[m['name']].define_accuracy(int(m['hit']), int(m['fired']))
+    elif e_type == 'WHOSHOTWHO':
+        victim, damages_received, killer, accomplices = analyse_several_crafts(event)
+        heat.planes[victim].b_damages_received += damages_received
+        heat.planes[victim].nbr_b_received += 1
+        for name, damages in [killer]+accomplices:
+            heat.planes[name].b_damages_gived += damages
+            heat.planes[name].nbr_b_gived += 1
+    elif e_type == 'WHOHITWHOWITHMISSILES':
+        victim, damages_received, killer, accomplices = analyse_several_crafts(event)
+        heat.planes[victim].m_damages_received += damages_received
+        heat.planes[victim].nbr_m_received += 1
+        for name, damages in [killer] + accomplices:
+            heat.planes[name].m_damages_gived += damages
+            heat.planes[name].nbr_m_gived += 1
+    elif e_type == 'CLEANKILL':
+        victim, damages_received, killer, accomplices = analyse_several_crafts(event)
+        heat.planes[victim].b_damages_received += damages_received
+        heat.planes[victim].nbr_clean_kill_b_received += 1
+        heat.planes[killer[0]].nbr_clean_kill_b_gived += 1
+        heat.planes[killer[0]].b_damages_gived += killer[1]
+        for name, damages in accomplices:
+            heat.planes[name].b_damages_gived += damages
+            heat.planes[name].nbr_b_gived += 1
+    elif e_type == 'CLEANMISSILEKILL':
+        victim, damages_received, killer, accomplices = analyse_several_crafts(event)
+        heat.planes[victim].m_damages_received += damages_received
+        heat.planes[victim].nbr_clean_kill_m_received += 1
+        heat.planes[killer[0]].nbr_clean_kill_m_gived += 1
+        heat.planes[killer[0]].m_damages_gived += killer[1]
+        for name, damages in accomplices:
+            heat.planes[name].m_damages_gived += damages
+            heat.planes[name].nbr_m_gived += 1
+    else:
+        input(f'#ERROR analyse_regular_line: "{line}"')
     return heat
 
 
