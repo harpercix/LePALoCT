@@ -1,6 +1,6 @@
 from pathlib import Path
 import re
-from typing import List, Dict
+from typing import List, Dict, Tuple, Union
 
 translations = {'FR': {0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dans "Logs" ou dans un tournoi.',
                        10: 'Choisis un ou plusieurs tournois parmis ceux ci (separes par des "-") :\n',
@@ -15,7 +15,7 @@ translations = {'FR': {0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dan
 
 
 class Plane:
-    # 0 area, 1 stock_mod, 2 cat, 3 player, 4 craft_name, 5 nbr_b_gived, 6 nbr_b_received, 7 nbr_m_gived, 8 nbr_m_received, 9 nbr_r_gived, 10 nbr_r_received, 11 b_damages_gived, 12 b_damages_received, 13 m_damages_gived, 14 m_damages_received, 15 parts_destructed_r_gived, 16 parts_destructed_r_received, 17 nbr_clean_kill_b_gived, 18 nbr_clean_kill_b_received, 19 nbr_clean_kill_m_gived, 20 nbr_clean_kill_m_received, 21 nbr_clean_kill_r_gived, 22 nbr_clean_kill_r_received, 23 suicide, 24 mia, 25 b_fired, 26 b_hit, 27 death_order, 28 podium, 29 dead_time, 30 hp, 31 team
+    # 0 area, 1 stock_mod, 2 cat, 3 player, 4 craft_name, 5 nbr_b_gived, 6 nbr_b_received, 7 nbr_m_gived, 8 nbr_m_received, 9 nbr_r_gived, 10 nbr_r_received, 11 b_damages_gived, 12 b_damages_received, 13 m_damages_gived, 14 m_damages_received, 15 parts_destructed_r_gived, 16 parts_destructed_r_received, 17 nbr_clean_kill_b_gived, 18 nbr_clean_kill_b_received, 19 nbr_clean_kill_m_gived, 20 nbr_clean_kill_m_received, 21 nbr_clean_kill_r_gived, 22 nbr_clean_kill_r_received, 23 alive, 24 suicide, 25 mia, 26 b_fired, 27 b_hit, 28 death_order, 29 dead_time, 30 hp, 31 team
     def __init__(self, area, stock_mod, cat, player, craft_name,
                  nbr_b_gived, nbr_b_received, nbr_m_gived, nbr_m_received,
                  nbr_r_gived, nbr_r_received,
@@ -24,7 +24,7 @@ class Plane:
                  nbr_clean_kill_b_gived, nbr_clean_kill_b_received,
                  nbr_clean_kill_m_gived, nbr_clean_kill_m_received,
                  nbr_clean_kill_r_gived, nbr_clean_kill_r_received,
-                 suicide, mia, b_fired, b_hit, death_order, podium, dead_time, hp, team
+                 alive, suicide, mia, b_fired, b_hit, death_order, dead_time, hp, team
                  ):
         self.area = area
         self.stock_mod = stock_mod
@@ -49,18 +49,111 @@ class Plane:
         self.nbr_clean_kill_m_received = nbr_clean_kill_m_received
         self.nbr_clean_kill_r_gived = nbr_clean_kill_r_gived
         self.nbr_clean_kill_r_received = nbr_clean_kill_r_received
+        self.alive = alive
         self.suicide = suicide
         self.mia = mia
         self.b_fired = b_fired
         self.b_hit = b_hit
         self.death_order = death_order
-        self.podium = podium
         self.dead_time = dead_time
         self.hp = hp
         self.team = team
 
 
-def creat_multi_tournament(p: Path, list_tournaments: List):
+class Tournament:
+    def __init__(self, duration: int, max_duration: int, planes: Dict[str, Plane]):
+        self.duration = duration
+        self.max_duration = max_duration
+        self.planes = planes
+
+
+class Heat(Tournament):
+    def __init__(self, duration: int, max_duration: int, planes: Dict[str, Plane]):
+        super().__init__(duration, max_duration, planes)
+
+
+def name_separator(name: str) -> Tuple[str, str, str, str, Union[str, None]]:
+    m = re.match('(?P<area>[^-]+)-(?P<cat>[^-]+)-(?P<player>[^-]+)-(?P<craft_name>[^-]+)', name)
+    team = None
+    if m is None:
+        m = re.match('(?P<area>[^-]+)-(?P<cat>[^-]+)-(?P<team>[^-]+)-(?P<player>[^-]+)-(?P<craft_name>[^-]+)', name)
+        if m is None:
+            print(f'#ERROR incorect name : "{name}"')
+            return 'NA', 'NA', 'NA', name, None
+    else:
+        team = m['team']
+    n = re.match('(?P<craft_name>[^_]+)_(?P<nbr>.+)', m['craft_name'])
+    if n is None:
+        return m['area'], m['cat'], m['player'], m['craft_name'], team
+    return m['area'], m['cat'], m['player'], n['craft_name'], team
+
+
+def analyse_regular_line(line: str, heat: Heat) -> Heat:
+    m = re.match(r'\[.+]: (?P<e_type>[A-Z]+):(?P<event>.+)$', line)
+    if m is None:
+        print(f'#ERROR analyse_regular_line: "{line}"')
+        return heat
+    e_type = m['e_type']
+    event = m['event']
+    print(f'#{e_type} {event}')
+    if e_type == 'ALIVE':
+        if event[:7] not in ('Débris', 'DÃ©bris') and event[-5:] not in ('Avion', 'avion'):
+            heat.planes[event].dead_time = -1
+            heat.planes[event] = Plane()
+    if e_type == 'DEAD':
+        m = re.match(r'(?P<death_order>\d+):(?P<s>\d+).(?P<ds>\d+):(?P<name>.*)$', event)
+        heat.planes[m['name']].dead_time = int(m['s']) + int(m['ds']) * 0.1
+        heat.planes[m['name']].suicide = 1
+    if e_type == 'MIA':
+        pass
+
+    return heat
+
+
+def analyse_first_line(line: str, heat: Heat) -> Heat:
+    m = re.match(r'\[[^:]*:(?P<tag>\d+)]: '
+                 r'Dumping Results after (?P<duration>\d+)s \(of (?P<max_duration>.+)s\) at '
+                 r'(?P<date>\d{4}-\d{2}-\d{2}) (?P<hour>\d{2}:\d{2}:\d{2}) [+-]\d{2}:\d{2}$', line)
+    heat.duration += int(m['duration'])
+    heat.max_duration += int(m['max_duration'])
+    return heat
+
+
+def heat_f(p: Path, tournament: Tournament, tag: str, nbr: str):
+    print(f'##{p.name}')
+    file = []
+    with open(p) as file_read:
+        for line in file_read:
+            file.append(line)
+    heat = Heat(-1, -1, {})
+    heat = analyse_first_line(file[0], heat)
+    for line in file[1:]:
+        heat = analyse_regular_line(line, heat)
+
+
+def round_f(p: Path, tournament: Tournament):
+    print(f'##{p.name}')
+    for f in p.iterdir():
+        filename = f.name
+        print(f'#{filename}')
+        m = re.match(r'(?P<tag>\d{8})-Heat (?P<nbr>\d+)\.log$', filename)
+        if m is not None:
+            heat_f(f, tournament, m['tag'], m['nbr'])
+
+
+def tournament_f(p: Path, dictonary: Dict[int, str]):
+    """2"""
+    print('##Tournament')
+    tournament = Tournament(0, 0, {})
+    for f in p.iterdir():
+        filename = f.name
+        print(f'#{filename}')
+        m = re.match(r'Round (?P<nbr>\d+)', filename)
+        if m is not None:
+            round_f(f, tournament)
+
+
+def creat_multi_tournament(p: Path, list_tournaments: List) -> Path:
     total_name = 'Total Tournament '
     for t in list_tournaments:
         m = re.match(r'Tournament (?P<nbrs>\d+)', t.name)
@@ -103,8 +196,9 @@ def creat_multi_tournament(p: Path, list_tournaments: List):
     return p_tt
 
 
-def search_tournament(p: Path, dictonary: Dict[int, str]):
+def search_tournament(p: Path, dictonary: Dict[int, str]) -> Path:
     """1"""
+
     def set_list(text, nbr_tournaments):
         separated_text = text.split('-')
         numbers = []
@@ -141,16 +235,20 @@ def search_tournament(p: Path, dictonary: Dict[int, str]):
 
 def main():
     """0"""
+
     def is_a_tournament(name: str) -> bool:
         m = re.match(r'Tournament (?P<nbr>\d+)', name)
-        return m['nbr'] is not None
+        if m is not None:
+            return True
+        m = re.match('Total Tournament (?P<nbrs>.+)', name)
+        return m is not None
 
     p = Path.cwd()
     dictionary: Dict[int, str] = translations['EN']
     if p.parts[-1] == 'Logs':
         p = search_tournament(p, dictionary)
     if is_a_tournament(p.parts[-1]):
-        pass
+        tournament_f(p, dictionary)
     else:
         print(dictionary[0])
         input(dictionary[999])
