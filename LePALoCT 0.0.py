@@ -1,3 +1,4 @@
+from json import loads
 from pathlib import Path
 import re
 from typing import List, Dict, Tuple, Union
@@ -15,38 +16,42 @@ translations = {'FR': {0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dan
 
 
 class Plane:
-    # 0 area, 1 cat, 2 player, 3 craft_name, 4 nbr_b_gived, 5 nbr_b_received, 6 nbr_m_gived, 7 nbr_m_received, 8 nbr_r_gived, 9 nbr_r_received, 10 b_damages_gived, 11 b_damages_received, 12 m_damages_gived, 13 m_damages_received, 14 parts_destructed_r_gived, 15 parts_destructed_r_received, 16 nbr_clean_kill_b_gived, 17 nbr_clean_kill_b_received, 18 nbr_clean_kill_m_gived, 19 nbr_clean_kill_m_received, 20 nbr_clean_kill_r_gived, 21 nbr_clean_kill_r_received, 22 alive, 23 suicide, 24 mia, 25 b_fired, 26 b_hit, 27 death_order, 28 dead_time, 29 hp, 30 team
     def __init__(self, area, cat, player, craft_name,
-                 nbr_b_gived, nbr_b_received, nbr_m_gived, nbr_m_received,
-                 nbr_r_gived, nbr_r_received,
-                 b_damages_gived, b_damages_received, m_damages_gived, m_damages_received,
-                 parts_destructed_r_gived, parts_destructed_r_received,
-                 nbr_clean_kill_b_gived, nbr_clean_kill_b_received,
-                 nbr_clean_kill_m_gived, nbr_clean_kill_m_received,
-                 nbr_clean_kill_r_gived, nbr_clean_kill_r_received,
+                 nbr_b_given, nbr_b_received, nbr_m_given, nbr_m_received,
+                 nbr_r_given, nbr_r_received,
+                 hit_b_given, hit_b_received, hit_m_given, hit_m_received,
+                 b_damages_given, b_damages_received, m_damages_given, m_damages_received,
+                 parts_destructed_r_given, parts_destructed_r_received,
+                 nbr_clean_kill_b_given, nbr_clean_kill_b_received,
+                 nbr_clean_kill_m_given, nbr_clean_kill_m_received,
+                 nbr_clean_kill_r_given, nbr_clean_kill_r_received,
                  alive, suicide, mia, b_fired, b_hit, death_order, dead_time, hp, team
                  ):
         self.area = area
         self.cat = cat
         self.player = player
         self.craft_name = craft_name
-        self.nbr_b_gived = nbr_b_gived
+        self.nbr_b_given = nbr_b_given
         self.nbr_b_received = nbr_b_received
-        self.nbr_m_gived = nbr_m_gived
+        self.nbr_m_given = nbr_m_given
         self.nbr_m_received = nbr_m_received
-        self.nbr_r_gived = nbr_r_gived
+        self.nbr_r_given = nbr_r_given
         self.nbr_r_received = nbr_r_received
-        self.b_damages_gived = b_damages_gived
+        self.hit_b_given = hit_b_given
+        self.hit_b_received = hit_b_received
+        self.hit_m_given = hit_m_given
+        self.hit_m_received = hit_m_received
+        self.b_damages_given = b_damages_given
         self.b_damages_received = b_damages_received
-        self.m_damages_gived = m_damages_gived
+        self.m_damages_given = m_damages_given
         self.m_damages_received = m_damages_received
-        self.parts_destructed_r_gived = parts_destructed_r_gived
+        self.parts_destructed_r_given = parts_destructed_r_given
         self.parts_destructed_r_received = parts_destructed_r_received
-        self.nbr_clean_kill_b_gived = nbr_clean_kill_b_gived
+        self.nbr_clean_kill_b_given = nbr_clean_kill_b_given
         self.nbr_clean_kill_b_received = nbr_clean_kill_b_received
-        self.nbr_clean_kill_m_gived = nbr_clean_kill_m_gived
+        self.nbr_clean_kill_m_given = nbr_clean_kill_m_given
         self.nbr_clean_kill_m_received = nbr_clean_kill_m_received
-        self.nbr_clean_kill_r_gived = nbr_clean_kill_r_gived
+        self.nbr_clean_kill_r_given = nbr_clean_kill_r_given
         self.nbr_clean_kill_r_received = nbr_clean_kill_r_received
         self.alive = alive
         self.suicide = suicide
@@ -94,7 +99,7 @@ def name_separator(name: str) -> Tuple[str, str, str, str, Union[str, None]]:
 def create_plane(name: str, dead_time: float):
     area, cat, player, craft_name, team = name_separator(name)
     return Plane(area, cat, player, craft_name, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                 0, dead_time, team)
+                 0, 0, 0, 0, dead_time, 0, team)
 
 
 def analyse_several_crafts(event: str) -> Tuple[str, float, Tuple[str, float], List[Tuple[str, float]]]:
@@ -119,10 +124,10 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
     print(f'#{e_type} {event}')
     if e_type == 'ALIVE':
         if event[:7] not in ('Débris', 'DÃ©bris') and event[-5:] not in ('Avion', 'avion'):
-            heat.planes[event] = create_plane(event, -1)
+            heat.planes[event].dead_time = -1
     elif e_type == 'DEAD':
         m = re.match(r'(?P<death_order>\d+):(?P<s>\d+).(?P<ds>\d+):(?P<name>.*)$', event)
-        heat.planes[m['name']] = create_plane(m['name'], int(m['s']) + int(m['ds']) * 0.1)
+        heat.planes[m['name']].dead_time = int(m['s']) + int(m['ds']) * 0.1
         heat.planes[m['name']].suicide = 1
     elif e_type == 'MIA':
         pass
@@ -131,36 +136,65 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
         heat.planes[m['name']].define_accuracy(int(m['hit']), int(m['fired']))
     elif e_type == 'WHOSHOTWHO':
         victim, damages_received, killer, accomplices = analyse_several_crafts(event)
-        heat.planes[victim].b_damages_received += damages_received
+        heat.planes[victim].hit_b_received += damages_received
         heat.planes[victim].nbr_b_received += 1
         for name, damages in [killer]+accomplices:
-            heat.planes[name].b_damages_gived += damages
-            heat.planes[name].nbr_b_gived += 1
+            heat.planes[name].hit_b_given += damages
+            heat.planes[name].nbr_b_given += 1
     elif e_type == 'WHOHITWHOWITHMISSILES':
         victim, damages_received, killer, accomplices = analyse_several_crafts(event)
-        heat.planes[victim].m_damages_received += damages_received
+        heat.planes[victim].hit_m_received += damages_received
         heat.planes[victim].nbr_m_received += 1
         for name, damages in [killer] + accomplices:
-            heat.planes[name].m_damages_gived += damages
-            heat.planes[name].nbr_m_gived += 1
+            heat.planes[name].hit_m_given += damages
+            heat.planes[name].nbr_m_given += 1
+    elif e_type == 'WHORAMMEDWHO':
+        victim, damages_received, killer, accomplices = analyse_several_crafts(event)
+        heat.planes[victim].parts_destructed_r_received += damages_received
+        heat.planes[victim].nbr_r_received += 1
+        for name, damages in [killer] + accomplices:
+            heat.planes[name].parts_destructed_r_given += damages
+            heat.planes[name].nbr_r_given += 1
     elif e_type == 'CLEANKILL':
+        m = re.match(r'(?P<victim>[^:]+):(?P<killer>.+)', event)
+        heat.planes[m['victim']].nbr_clean_kill_b_received += 1
+        heat.planes[m['killer']].nbr_clean_kill_b_given += 1
+    elif e_type == 'CLEANMISSILEKILL':
+        m = re.match(r'(?P<victim>[^:]+):(?P<killer>.+)', event)
+        heat.planes[m['victim']].nbr_clean_kill_m_received += 1
+        heat.planes[m['killer']].nbr_clean_kill_m_given += 1
+    elif e_type == 'CLEANRAM':
+        m = re.match(r'(?P<victim>[^:]+):(?P<killer>.+)', event)
+        heat.planes[m['victim']].nbr_clean_kill_r_received += 1
+        heat.planes[m['killer']].nbr_clean_kill_r_given += 1
+    elif e_type == 'WHODAMAGEDWHOWITHBULLETS':
         victim, damages_received, killer, accomplices = analyse_several_crafts(event)
         heat.planes[victim].b_damages_received += damages_received
-        heat.planes[victim].nbr_clean_kill_b_received += 1
-        heat.planes[killer[0]].nbr_clean_kill_b_gived += 1
-        heat.planes[killer[0]].b_damages_gived += killer[1]
-        for name, damages in accomplices:
-            heat.planes[name].b_damages_gived += damages
-            heat.planes[name].nbr_b_gived += 1
-    elif e_type == 'CLEANMISSILEKILL':
+        for name, damages in [killer] + accomplices:
+            heat.planes[name].b_damages_given += damages
+    elif e_type == 'WHODAMAGEDWHOWITHMISSILES':
         victim, damages_received, killer, accomplices = analyse_several_crafts(event)
         heat.planes[victim].m_damages_received += damages_received
-        heat.planes[victim].nbr_clean_kill_m_received += 1
-        heat.planes[killer[0]].nbr_clean_kill_m_gived += 1
-        heat.planes[killer[0]].m_damages_gived += killer[1]
-        for name, damages in accomplices:
-            heat.planes[name].m_damages_gived += damages
-            heat.planes[name].nbr_m_gived += 1
+        for name, damages in [killer] + accomplices:
+            heat.planes[name].m_damages_given += damages
+    elif e_type == 'RESULT':
+        m = re.match(r'(?P<result>[^:]+):(?P<team>.+)$', event)
+        team_text = loads(m['team'])
+        if type(team_text) == dict:
+            for name_plane in team_text['members']:
+                if name_plane not in heat.planes:
+                    heat.planes[name_plane] = create_plane(name_plane, -4)
+            return heat
+        for dictionnary in team_text:
+            for name_plane in dictionnary['members']:
+                if name_plane not in heat.planes:
+                    heat.planes[name_plane] = create_plane(name_plane, -4)
+    elif e_type == 'DEADTEAM':
+        list_team = loads(event)  # It look like json
+        for team_text in list_team:
+            for name_plane in team_text['members']:
+                if name_plane not in heat.planes:
+                    heat.planes[name_plane] = create_plane(name_plane, -3)
     else:
         input(f'#ERROR analyse_regular_line: "{line}"')
     return heat
@@ -175,7 +209,7 @@ def analyse_first_line(line: str, heat: Heat) -> Heat:
     return heat
 
 
-def heat_f(p: Path, tournament: Tournament, tag: str, nbr: str):
+def heat_f(p: Path, tournament: Tournament, tag: str, round_nbr: str):
     print(f'##{p.name}')
     file = []
     with open(p) as file_read:
@@ -192,9 +226,9 @@ def round_f(p: Path, tournament: Tournament):
     for f in p.iterdir():
         filename = f.name
         print(f'#{filename}')
-        m = re.match(r'(?P<tag>\d{8})-Heat (?P<nbr>\d+)\.log$', filename)
+        m = re.match(r'(?P<tag>\d{8})-Heat (?P<round_nbr>\d+)\.log$', filename)
         if m is not None:
-            heat_f(f, tournament, m['tag'], m['nbr'])
+            heat_f(f, tournament, m['tag'], m['round_nbr'])
 
 
 def tournament_f(p: Path, dictonary: Dict[int, str]):
