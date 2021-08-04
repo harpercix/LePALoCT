@@ -7,6 +7,40 @@ translations = {'FR': {0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dan
                        10: 'Choisis un ou plusieurs tournois parmis ceux ci (separes par des "-") :\n',
                        11: 'Il faut un ou plusieurs nombres (separes par des "-", exemple : "42-666-512") entre ',
                        12: '\n[numeros] : ',
+                       100: 'area',
+                       101: 'category',
+                       102: 'player',
+                       103: 'craft name',
+                       104: 'shot bullet given',
+                       105: 'shot bullet received',
+                       106: 'shot missile given',
+                       107: 'shot missile received',
+                       108: 'shot ram given',
+                       109: 'shot ram received',
+                       110: 'hit bullet given',
+                       111: 'hit bullet received',
+                       112: 'hit missile given',
+                       113: 'hit missile received',
+                       114: 'bullet damages given',
+                       115: 'bullet damages received',
+                       116: 'missile damages given',
+                       117: 'missile damages received',
+                       118: 'parts rammed given',
+                       119: 'parts rammed received',
+                       120: 'clean kill bullet given',
+                       121: 'clean kill bullet received',
+                       122: 'clean kill missile given',
+                       123: 'clean kill missile received',
+                       124: 'clean kill ram given',
+                       125: 'clean kill ram received',
+                       126: 'alive',
+                       127: 'MIA',
+                       128: 'bullets fired',
+                       129: 'bullet hit',
+                       130: 'death order',
+                       131: 'dead time',
+                       132: 'HP',
+                       133: 'team',
                        999: '[Entrer] pour continuer'},
                 'EN': {0: 'LePALoCT isn\'t in the good folder.\nIt would be in "Logs" or in a tournament.',
                        10: 'Choose one or several tournaments (separated with "-"):\n',
@@ -25,7 +59,7 @@ class Plane:
                  nbr_clean_kill_b_given, nbr_clean_kill_b_received,
                  nbr_clean_kill_m_given, nbr_clean_kill_m_received,
                  nbr_clean_kill_r_given, nbr_clean_kill_r_received,
-                 alive, suicide, mia, b_fired, b_hit, death_order, dead_time, hp, team
+                 alive, suicide, mia, b_fired, b_hit, death_order, dead_time, hp, nbr_heat_done, team
                  ):
         self.area = area
         self.cat = cat
@@ -61,6 +95,7 @@ class Plane:
         self.death_order = death_order
         self.dead_time = dead_time
         self.hp = hp
+        self.nbr_heat_done = nbr_heat_done
         self.team = team
 
     def define_accuracy(self, hit: int, fired: int):
@@ -99,7 +134,7 @@ def name_separator(name: str) -> Tuple[str, str, str, str, Union[str, None]]:
 def create_plane(name: str, dead_time: float):
     area, cat, player, craft_name, team = name_separator(name)
     return Plane(area, cat, player, craft_name, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                 0, 0, 0, 0, dead_time, 0, team)
+                 0, 0, 0, 0, dead_time, 0, 1, team)
 
 
 def analyse_several_crafts(event: str) -> Tuple[str, float, Tuple[str, float], List[Tuple[str, float]]]:
@@ -107,10 +142,13 @@ def analyse_several_crafts(event: str) -> Tuple[str, float, Tuple[str, float], L
     victim: str = m['victim']
     total_damages: float = 0
     killers: List[Tuple[str, float]] = []
+    m = re.match(r'(?P<damages>[^:]+):(?P<killer>[^:]+):(?P<queue>[^:]+)', m['queue'])
     while m is not None:
-        m = re.match(r'(?P<damages>[^:]+):(?P<killer>[^:]+):(?P<queue>[^:]+)', m['queue'])
         killers.append((m['killer'], int(m['damages'])))
         total_damages += int(m['damages'])
+        m = re.match(r'(?P<damages>[^:]+):(?P<killer>[^:]+):(?P<queue>[^:]+)', m['queue'])
+    m = re.match(r'(?P<damages>[^:]+):(?P<killer>.+)$', m)
+    print(f'#analyse_several_crafts "{killers}"')
     return victim, total_damages, killers[0], killers[1:]
 
 
@@ -128,6 +166,7 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
     elif e_type == 'DEAD':
         m = re.match(r'(?P<death_order>\d+):(?P<s>\d+).(?P<ds>\d+):(?P<name>.*)$', event)
         heat.planes[m['name']].dead_time = int(m['s']) + int(m['ds']) * 0.1
+        heat.planes[m['name']].death_order = int(m['death_order']) + 1
         heat.planes[m['name']].suicide = 1
     elif e_type == 'MIA':
         pass
@@ -138,7 +177,7 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
         victim, damages_received, killer, accomplices = analyse_several_crafts(event)
         heat.planes[victim].hit_b_received += damages_received
         heat.planes[victim].nbr_b_received += 1
-        for name, damages in [killer]+accomplices:
+        for name, damages in [killer] + accomplices:
             heat.planes[name].hit_b_given += damages
             heat.planes[name].nbr_b_given += 1
     elif e_type == 'WHOHITWHOWITHMISSILES':
@@ -177,7 +216,13 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
         heat.planes[victim].m_damages_received += damages_received
         for name, damages in [killer] + accomplices:
             heat.planes[name].m_damages_given += damages
+    elif e_type == 'HPLEFT':
+        print(f'#HPLEFT {event}')
+        m = re.match(r'(?P<name>[^:]+):(?P<hp>.+)', event)
+        heat.planes[m['name']].hp = float(m['hp'])
     elif e_type == 'RESULT':
+        if event == 'Mutual Annihilation':
+            return heat
         m = re.match(r'(?P<result>[^:]+):(?P<team>.+)$', event)
         team_text = loads(m['team'])
         if type(team_text) == dict:
@@ -189,7 +234,7 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
             for name_plane in dictionnary['members']:
                 if name_plane not in heat.planes:
                     heat.planes[name_plane] = create_plane(name_plane, -4)
-    elif e_type == 'DEADTEAM':
+    elif e_type == 'DEADTEAMS':
         list_team = loads(event)  # It look like json
         for team_text in list_team:
             for name_plane in team_text['members']:
@@ -209,7 +254,45 @@ def analyse_first_line(line: str, heat: Heat) -> Heat:
     return heat
 
 
-def heat_f(p: Path, tournament: Tournament, tag: str, round_nbr: str):
+def death_order_sort(heat: Heat) -> Heat:
+    max_death_order = 0
+    for avion in heat.planes.values():
+        max_death_order = max(avion.death_order, max_death_order)
+    for avion in heat.planes.values():
+        if avion.death_order == -1:
+            avion.death_order = max_death_order + 1
+    return heat
+
+
+def values_plane(plane: Plane) -> List[Union[str, int, float]]:
+    return [plane.area, plane.cat, plane.player, plane.craft_name, plane.nbr_b_given, plane.nbr_b_received,
+            plane.nbr_m_given, plane.nbr_m_received, plane.nbr_r_given, plane.nbr_r_received,
+            plane.hit_b_given, plane.hit_b_received, plane.hit_m_given, plane.hit_m_received,
+            plane.b_damages_given, plane.b_damages_received, plane.m_damages_given, plane.m_damages_received,
+            plane.parts_destructed_r_given, plane.parts_destructed_r_received,
+            plane.nbr_clean_kill_b_given, plane.nbr_clean_kill_b_received,
+            plane.nbr_clean_kill_m_given, plane.nbr_clean_kill_m_received,
+            plane.nbr_clean_kill_r_given, plane.nbr_clean_kill_r_received,
+            plane.alive, plane.suicide, plane.mia, plane.b_fired, plane.b_hit, plane.death_order,
+            plane.dead_time, plane.hp, plane.nbr_heat_done, plane.team]
+
+
+def add_heat_to_tournament(heat: Heat, tournament: Tournament) -> Tournament:
+    print(f'#add_heat_to_tournament {heat.planes}')
+    tournament.duration += heat.duration
+    tournament.max_duration += heat.max_duration
+    for name, plane_h in heat.planes.items():
+        if name not in tournament.planes:
+            list_values_t = values_plane(plane_h)
+        else:
+            list_values_t = values_plane(tournament.planes[name])
+            list_values_h = values_plane(plane_h)
+            for i in range(len(list_values_t)):
+                list_values_t[i] += list_values_h[i]
+    return tournament
+
+
+def heat_f(p: Path, tournament: Tournament):
     print(f'##{p.name}')
     file = []
     with open(p) as file_read:
@@ -219,16 +302,59 @@ def heat_f(p: Path, tournament: Tournament, tag: str, round_nbr: str):
     heat = analyse_first_line(file[0], heat)
     for line in file[1:]:
         heat = analyse_regular_line(line, heat)
+    return add_heat_to_tournament(death_order_sort(heat), tournament)
 
 
-def round_f(p: Path, tournament: Tournament):
+def round_f(p: Path, tournament: Tournament) -> Tournament:
     print(f'##{p.name}')
     for f in p.iterdir():
         filename = f.name
         print(f'#{filename}')
         m = re.match(r'(?P<tag>\d{8})-Heat (?P<round_nbr>\d+)\.log$', filename)
         if m is not None:
-            heat_f(f, tournament, m['tag'], m['round_nbr'])
+            heat_f(f, tournament)
+    return tournament
+
+
+def create_table(tournament: Tournament, dictionary: Dict[int, str]) -> List[List[str]]:
+    """10"""
+    column_name = ['area', 'cat', 'player', 'craft_name', 'nbr_b_given', 'nbr_b_received',
+                   'nbr_m_given', 'nbr_m_received', 'nbr_r_given', 'nbr_r_received',
+                   'hit_b_given', 'hit_b_received', 'hit_m_given', 'hit_m_received',
+                   'b_damages_given', 'b_damages_received', 'm_damages_given', 'm_damages_received',
+                   'parts_destructed_r_given', 'parts_destructed_r_received',
+                   'nbr_clean_kill_b_given', 'nbr_clean_kill_b_received',
+                   'nbr_clean_kill_m_given', 'nbr_clean_kill_m_received',
+                   'nbr_clean_kill_r_given', 'nbr_clean_kill_r_received',
+                   'alive', 'suicide', 'mia', 'b_fired', 'b_hit', 'death_order',
+                   'dead_time', 'hp', 'nbr_heat_done', 'team']
+    column_organisation = column_name[:]
+    column_to_nbr = {}
+    for i, column_name in enumerate(column_name):
+        column_to_nbr[column_name] = i
+    columns = []
+    for name, plane in tournament.planes.items():
+        values_of_planes = {}
+        for i, value in enumerate(values_plane(plane)):
+            values_of_planes[column_name[i]] = (i, value)
+        columns.append(values_of_planes)
+    table: List[List[Union[str]]] = []
+    first_line: List[Union[str]] = []
+    for column_title in column_organisation:
+        first_line.append(dictionary[100 + column_to_nbr[column_title]])
+    table.append(first_line)
+    for plane_line in columns:
+        line: List[Union[str]] = []
+        for columns_title in column_organisation:
+            line.append(str(plane_line[columns_title][1]))
+        table.append(line)
+    return table
+
+
+def table_diplay(table: List[List[str]]):
+    print(table)
+    input()
+    list_lenght_columns = []
 
 
 def tournament_f(p: Path, dictonary: Dict[int, str]):
@@ -240,7 +366,9 @@ def tournament_f(p: Path, dictonary: Dict[int, str]):
         print(f'#{filename}')
         m = re.match(r'Round (?P<nbr>\d+)', filename)
         if m is not None:
-            round_f(f, tournament)
+            tournament = round_f(f, tournament)
+    table = create_table(tournament, dictonary)
+    table_diplay(table)
 
 
 def creat_multi_tournament(p: Path, list_tournaments: List) -> Path:
