@@ -164,11 +164,10 @@ def analyse_several_crafts(event: str) -> Tuple[str, float, Tuple[str, float], L
 def analyse_regular_line(line: str, heat: Heat) -> Heat:
     m = re.match(r'\[.+]: (?P<e_type>[A-Z]+):(?P<event>.+)$', line)
     if m is None:
-        print(f'#ERROR analyse_regular_line: "{line}"')
+        input(f'#ERROR analyse_regular_line: "{line}"')
         return heat
     e_type = m['e_type']
     event = m['event']
-    print(f'#{e_type} {event}')
     if e_type == 'ALIVE':
         if event[:7] not in ('Débris', 'DÃ©bris') and event[-5:] not in ('Avion', 'avion'):
             heat.planes[event].dead_time = heat.duration
@@ -226,7 +225,6 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
         for name, damages in [killer] + accomplices:
             heat.planes[name].m_damages_given += damages
     elif e_type == 'HPLEFT':
-        print(f'#HPLEFT {event}')
         m = re.match(r'(?P<name>[^:]+):(?P<hp>.+)', event)
         heat.planes[m['name']].hp = float(m['hp'])
     elif e_type == 'RESULT':
@@ -310,7 +308,6 @@ def create_complet_plane(values):
 
 
 def add_heat_to_tournament(heat: Heat, tournament: Tournament) -> Tournament:
-    print(f'#add_heat_to_tournament {heat.planes}')
     tournament.duration += heat.duration
     tournament.max_duration += heat.max_duration
     for name, plane_h in heat.planes.items():
@@ -326,7 +323,7 @@ def add_heat_to_tournament(heat: Heat, tournament: Tournament) -> Tournament:
 
 
 def heat_f(p: Path, tournament: Tournament):
-    print(f'##{p.name}')
+    print('##Heat {p}')
     file = []
     with open(p) as file_read:
         for line in file_read:
@@ -339,10 +336,9 @@ def heat_f(p: Path, tournament: Tournament):
 
 
 def round_f(p: Path, tournament: Tournament) -> Tournament:
-    print(f'##{p.name}')
+    print(f'##Round {p}')
     for f in p.iterdir():
         filename = f.name
-        print(f'#{filename}')
         m = re.match(r'(?P<tag>\d{8})-Heat (?P<round_nbr>\d+)\.log$', filename)
         if m is not None:
             tournament = heat_f(f, tournament)
@@ -369,14 +365,11 @@ def create_table(tournament: Tournament, dictionary: Dict[int, str]) -> List[Lis
     for name, plane in tournament.planes.items():
         values_of_planes = {}
         for i, value in enumerate(values_plane(plane)):
-            # print(i, len(column_name))
-            # print(f'#CT {values_of_planes}, {column_name}, {values_plane(plane)}, {column_name[i]}, {i}, {value}')
             values_of_planes[column_name[i]] = (i, value)
         columns.append(values_of_planes)
     table: List[List[Union[str]]] = []
     first_line: List[Union[str]] = []
     for column_title in column_organisation:
-        # print(f'#SUPPR {dictionary}, {column_to_nbr}, {column_title}, {100 + column_to_nbr[column_title]}')
         first_line.append(dictionary[100 + column_to_nbr[column_title]])
     table.append(first_line)
     for plane_line in columns:
@@ -509,7 +502,6 @@ def search_tournament(p: Path, dictonary: Dict[int, str]) -> Path:
 
 def main():
     """0"""
-
     def is_a_tournament(name: str) -> bool:
         m = re.match(r'Tournament (?P<nbr>\d+)', name)
         if m is not None:
@@ -526,7 +518,6 @@ def main():
     else:
         print(dictionary[0])
         input(dictionary[999])
-    input(f'#{p}')
 
 
 if __name__ == '__main__':
