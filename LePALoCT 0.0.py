@@ -1,3 +1,4 @@
+import csv
 from json import loads
 from pathlib import Path
 import re
@@ -7,6 +8,11 @@ translations = {'FR': {0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dan
                        10: 'Choisis un ou plusieurs tournois parmis ceux ci (separes par des "-") :\n',
                        11: 'Il faut un ou plusieurs nombres (separes par des "-", exemple : "42-666-512") entre ',
                        12: '\n[numeros] : ',
+                       999: '[Entrer] pour continuer'},
+                'EN': {0: 'LePALoCT isn\'t in the good folder.\nIt would be in "Logs" or in a tournament.',
+                       10: 'Choose one or several tournaments (separated with "-"):\n',
+                       11: 'You need one or several numbers (separated with "-", exemple: "42-666-512") between ',
+                       12: '\n[numbers]: ',
                        100: 'area',
                        101: 'category',
                        102: 'player',
@@ -34,18 +40,15 @@ translations = {'FR': {0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dan
                        124: 'clean kill ram given',
                        125: 'clean kill ram received',
                        126: 'alive',
-                       127: 'MIA',
-                       128: 'bullets fired',
-                       129: 'bullet hit',
-                       130: 'death order',
-                       131: 'dead time',
-                       132: 'HP',
-                       133: 'team',
-                       999: '[Entrer] pour continuer'},
-                'EN': {0: 'LePALoCT isn\'t in the good folder.\nIt would be in "Logs" or in a tournament.',
-                       10: 'Choose one or several tournaments (separated with "-"):\n',
-                       11: 'You need one or several numbers (separated with "-", exemple: "42-666-512") between ',
-                       12: '\n[numbers]: ',
+                       127: 'Suicide',
+                       128: 'MIA',
+                       129: 'bullets fired',
+                       130: 'bullet hit',
+                       131: 'death order',
+                       132: 'dead time',
+                       133: 'HP',
+                       134: 'nbr heat',
+                       135: 'team',
                        999: '[Enter] to continue'}}
 
 
@@ -131,10 +134,10 @@ def name_separator(name: str) -> Tuple[str, str, str, str, Union[str, None]]:
     return m['area'], m['cat'], m['player'], n['craft_name'], team
 
 
-def create_plane(name: str, dead_time: float):
+def create_plane(name: str, dead_time: float, nbr_heat: int) -> Plane:
     area, cat, player, craft_name, team = name_separator(name)
     return Plane(area, cat, player, craft_name, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                 0, 0, 0, 0, dead_time, 0, 1, team)
+                 0, 0, 0, 0, dead_time, 0, nbr_heat, team)
 
 
 def analyse_several_crafts(event: str) -> Tuple[str, float, Tuple[str, float], List[Tuple[str, float]]]:
@@ -142,13 +145,19 @@ def analyse_several_crafts(event: str) -> Tuple[str, float, Tuple[str, float], L
     victim: str = m['victim']
     total_damages: float = 0
     killers: List[Tuple[str, float]] = []
-    m = re.match(r'(?P<damages>[^:]+):(?P<killer>[^:]+):(?P<queue>[^:]+)', m['queue'])
-    while m is not None:
-        killers.append((m['killer'], int(m['damages'])))
-        total_damages += int(m['damages'])
-        m = re.match(r'(?P<damages>[^:]+):(?P<killer>[^:]+):(?P<queue>[^:]+)', m['queue'])
-    m = re.match(r'(?P<damages>[^:]+):(?P<killer>.+)$', m)
-    print(f'#analyse_several_crafts "{killers}"')
+    n = re.match(r'(?P<damages>[^:]+):(?P<killer>[^:]+):(?P<queue>.+)$', m['queue'])
+    if n is None:
+        m = re.match(r'(?P<damages>[^:]+):(?P<killer>.+)$', m['queue'])
+        return victim, float(m['damages']), (m['killer'], float(m['damages'])), []
+    m = n
+    while n is not None:
+        m = n
+        total_damages += float(n['damages'])
+        killers.append((n['killer'], float(n['damages'])))
+        n = re.match(r'(?P<damages>[^:]+):(?P<killer>[^:]+):(?P<queue>.+)$', m['queue'])
+    m = re.match(r'(?P<damages>[^:]+):(?P<killer>.+)$', m['queue'])
+    total_damages += float(m['damages'])
+    killers.append((m['killer'], float(m['damages'])))
     return victim, total_damages, killers[0], killers[1:]
 
 
@@ -162,7 +171,7 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
     print(f'#{e_type} {event}')
     if e_type == 'ALIVE':
         if event[:7] not in ('Débris', 'DÃ©bris') and event[-5:] not in ('Avion', 'avion'):
-            heat.planes[event].dead_time = -1
+            heat.planes[event].dead_time = heat.duration
     elif e_type == 'DEAD':
         m = re.match(r'(?P<death_order>\d+):(?P<s>\d+).(?P<ds>\d+):(?P<name>.*)$', event)
         heat.planes[m['name']].dead_time = int(m['s']) + int(m['ds']) * 0.1
@@ -228,18 +237,18 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
         if type(team_text) == dict:
             for name_plane in team_text['members']:
                 if name_plane not in heat.planes:
-                    heat.planes[name_plane] = create_plane(name_plane, -4)
+                    heat.planes[name_plane] = create_plane(name_plane, -4, 1)
             return heat
         for dictionnary in team_text:
             for name_plane in dictionnary['members']:
                 if name_plane not in heat.planes:
-                    heat.planes[name_plane] = create_plane(name_plane, -4)
+                    heat.planes[name_plane] = create_plane(name_plane, -4, 1)
     elif e_type == 'DEADTEAMS':
         list_team = loads(event)  # It look like json
         for team_text in list_team:
             for name_plane in team_text['members']:
                 if name_plane not in heat.planes:
-                    heat.planes[name_plane] = create_plane(name_plane, -3)
+                    heat.planes[name_plane] = create_plane(name_plane, -3, 1)
     else:
         input(f'#ERROR analyse_regular_line: "{line}"')
     return heat
@@ -277,18 +286,42 @@ def values_plane(plane: Plane) -> List[Union[str, int, float]]:
             plane.dead_time, plane.hp, plane.nbr_heat_done, plane.team]
 
 
+def create_complet_plane(values):
+    area, cat, player, craft_name, nbr_b_given, nbr_b_received, \
+    nbr_m_given, nbr_m_received, nbr_r_given, nbr_r_received, \
+    hit_b_given, hit_b_received, hit_m_given, hit_m_received, \
+    b_damages_given, b_damages_received, m_damages_given, m_damages_received, \
+    parts_destructed_r_given, parts_destructed_r_received, \
+    nbr_clean_kill_b_given, nbr_clean_kill_b_received, \
+    nbr_clean_kill_m_given, nbr_clean_kill_m_received, \
+    nbr_clean_kill_r_given, nbr_clean_kill_r_received, \
+    alive, suicide, mia, b_fired, b_hit, death_order, \
+    dead_time, hp, nbr_heat_done, team = values
+    return Plane(area, cat, player, craft_name, nbr_b_given, nbr_b_received,
+                 nbr_m_given, nbr_m_received, nbr_r_given, nbr_r_received,
+                 hit_b_given, hit_b_received, hit_m_given, hit_m_received,
+                 b_damages_given, b_damages_received, m_damages_given, m_damages_received,
+                 parts_destructed_r_given, parts_destructed_r_received,
+                 nbr_clean_kill_b_given, nbr_clean_kill_b_received,
+                 nbr_clean_kill_m_given, nbr_clean_kill_m_received,
+                 nbr_clean_kill_r_given, nbr_clean_kill_r_received,
+                 alive, suicide, mia, b_fired, b_hit, death_order,
+                 dead_time, hp, nbr_heat_done, team)
+
+
 def add_heat_to_tournament(heat: Heat, tournament: Tournament) -> Tournament:
     print(f'#add_heat_to_tournament {heat.planes}')
     tournament.duration += heat.duration
     tournament.max_duration += heat.max_duration
     for name, plane_h in heat.planes.items():
         if name not in tournament.planes:
-            list_values_t = values_plane(plane_h)
-        else:
-            list_values_t = values_plane(tournament.planes[name])
-            list_values_h = values_plane(plane_h)
-            for i in range(len(list_values_t)):
+            tournament.planes[name] = create_plane(name, 0, 0)
+        list_values_t = values_plane(tournament.planes[name])
+        list_values_h = values_plane(plane_h)
+        for i in range(3, len(list_values_t)):
+            if type(list_values_h[i]) == int or type(list_values_h[i]) == float:
                 list_values_t[i] += list_values_h[i]
+        tournament.planes[name] = create_complet_plane(tuple(list_values_t))
     return tournament
 
 
@@ -312,7 +345,7 @@ def round_f(p: Path, tournament: Tournament) -> Tournament:
         print(f'#{filename}')
         m = re.match(r'(?P<tag>\d{8})-Heat (?P<round_nbr>\d+)\.log$', filename)
         if m is not None:
-            heat_f(f, tournament)
+            tournament = heat_f(f, tournament)
     return tournament
 
 
@@ -327,20 +360,23 @@ def create_table(tournament: Tournament, dictionary: Dict[int, str]) -> List[Lis
                    'nbr_clean_kill_m_given', 'nbr_clean_kill_m_received',
                    'nbr_clean_kill_r_given', 'nbr_clean_kill_r_received',
                    'alive', 'suicide', 'mia', 'b_fired', 'b_hit', 'death_order',
-                   'dead_time', 'hp', 'nbr_heat_done', 'team']
+                   'dead_time', 'hp', 'nbr heat', 'team']
     column_organisation = column_name[:]
     column_to_nbr = {}
-    for i, column_name in enumerate(column_name):
-        column_to_nbr[column_name] = i
+    for i, column in enumerate(column_name):
+        column_to_nbr[column] = i
     columns = []
     for name, plane in tournament.planes.items():
         values_of_planes = {}
         for i, value in enumerate(values_plane(plane)):
+            # print(i, len(column_name))
+            # print(f'#CT {values_of_planes}, {column_name}, {values_plane(plane)}, {column_name[i]}, {i}, {value}')
             values_of_planes[column_name[i]] = (i, value)
         columns.append(values_of_planes)
     table: List[List[Union[str]]] = []
     first_line: List[Union[str]] = []
     for column_title in column_organisation:
+        # print(f'#SUPPR {dictionary}, {column_to_nbr}, {column_title}, {100 + column_to_nbr[column_title]}')
         first_line.append(dictionary[100 + column_to_nbr[column_title]])
     table.append(first_line)
     for plane_line in columns:
@@ -353,8 +389,27 @@ def create_table(tournament: Tournament, dictionary: Dict[int, str]) -> List[Lis
 
 def table_diplay(table: List[List[str]]):
     print(table)
+    list_lenght_columns = [0] * len(table[0])
+    for line in table:
+        for i, case in enumerate(line):
+            if list_lenght_columns[i] < len(case):
+                list_lenght_columns[i] = len(case)
+    print(f'#table_display {list_lenght_columns}')
+    aff = ''
+    for line in table:
+        for i, case in enumerate(line):
+            aff += case + ' ' * (list_lenght_columns[i] - len(case)) + ':'
+        aff += '\n'
+    print(aff)
     input()
-    list_lenght_columns = []
+
+
+def csv_creator(p, table: List[List[str]]):
+    file_name = p / Path(f'table {p.parts[-1]}.csv')
+    with open(file_name, mode='w') as csv_table:
+        table_writer = csv.writer(csv_table, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL, dialect='unix')
+        for line in table:
+            table_writer.writerow(line)
 
 
 def tournament_f(p: Path, dictonary: Dict[int, str]):
@@ -369,6 +424,7 @@ def tournament_f(p: Path, dictonary: Dict[int, str]):
             tournament = round_f(f, tournament)
     table = create_table(tournament, dictonary)
     table_diplay(table)
+    csv_creator(p, table)
 
 
 def creat_multi_tournament(p: Path, list_tournaments: List) -> Path:
