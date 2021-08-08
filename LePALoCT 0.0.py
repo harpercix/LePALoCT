@@ -412,7 +412,6 @@ def csv_creator(p, table: List[List[str]]):
         for line in table:
             table_writer.writerow(line)
 
-from time import sleep
 
 def tournament_f(p: Path, dictonary: Dict[int, str]):
     """2"""
