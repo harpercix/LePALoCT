@@ -118,26 +118,26 @@ class Heat(Tournament):
         super().__init__(duration, max_duration, planes)
 
 
-def name_separator(name: str) -> Tuple[str, str, str, str, Union[str, None]]:
+def name_separator(name: str) -> Tuple[str, str, str, str, Union[str, None], str]:
     m = re.match('(?P<area>[^-]+)-(?P<cat>[^-]+)-(?P<player>[^-]+)-(?P<craft_name>[^-]+)', name)
     team = None
     if m is None:
         m = re.match('(?P<area>[^-]+)-(?P<cat>[^-]+)-(?P<team>[^-]+)-(?P<player>[^-]+)-(?P<craft_name>[^-]+)', name)
         if m is None:
-            print(f'#ERROR incorect name : "{name}"')
-            return 'NA', 'NA', 'NA', name, None
+            debug = f'#ERROR incorect name : "{name}"\n'
+            return 'NA', 'NA', 'NA', name, None, debug
     else:
         team = m['team']
     n = re.match('(?P<craft_name>[^_]+)_(?P<nbr>.+)', m['craft_name'])
     if n is None:
-        return m['area'], m['cat'], m['player'], m['craft_name'], team
-    return m['area'], m['cat'], m['player'], n['craft_name'], team
+        return m['area'], m['cat'], m['player'], m['craft_name'], team, ''
+    return m['area'], m['cat'], m['player'], n['craft_name'], team, ''
 
 
-def create_plane(name: str, dead_time: float, nbr_heat: int) -> Plane:
-    area, cat, player, craft_name, team = name_separator(name)
+def create_plane(name: str, dead_time: float, nbr_heat: int) -> Tuple[Plane, str]:
+    area, cat, player, craft_name, team, debug = name_separator(name)
     return Plane(area, cat, player, craft_name, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                 0, 0, 0, 0, dead_time, 0, nbr_heat, team)
+                 0, 0, 0, 0, dead_time, 0, nbr_heat, team), debug
 
 
 def analyse_several_crafts(event: str) -> Tuple[str, float, Tuple[str, float], List[Tuple[str, float]]]:
@@ -236,24 +236,24 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
             for team_text in list_team:
                 for name_plane in team_text['members']:
                     if name_plane not in heat.planes:
-                        heat.planes[name_plane] = create_plane(name_plane, -4, 1)
+                        heat.planes[name_plane], debug = create_plane(name_plane, -4, 1)
         elif m['result'] == 'Win':
             team_text = loads(m['team'])
             if type(team_text) == dict:
                 for name_plane in team_text['members']:
                     if name_plane not in heat.planes:
-                        heat.planes[name_plane] = create_plane(name_plane, -4, 1)
+                        heat.planes[name_plane], debug = create_plane(name_plane, -4, 1)
                 return heat
             for dictionnary in team_text:
                 for name_plane in dictionnary['members']:
                     if name_plane not in heat.planes:
-                        heat.planes[name_plane] = create_plane(name_plane, -4, 1)
+                        heat.planes[name_plane], debug = create_plane(name_plane, -4, 1)
     elif e_type == 'DEADTEAMS':
         list_team = loads(event)  # It look like json
         for team_text in list_team:
             for name_plane in team_text['members']:
                 if name_plane not in heat.planes:
-                    heat.planes[name_plane] = create_plane(name_plane, -3, 1)
+                    heat.planes[name_plane], debug = create_plane(name_plane, -3, 1)
     else:
         input(f'#ERROR analyse_regular_line: "{line}"')
     return heat
@@ -316,10 +316,12 @@ def create_complet_plane(values):
 
 def add_heat_to_tournament(heat: Heat, tournament: Tournament) -> Tournament:
     tournament.duration += heat.duration
+    debug = ''
     tournament.max_duration += heat.max_duration
     for name, plane_h in heat.planes.items():
         if name not in tournament.planes:
-            tournament.planes[name] = create_plane(name, 0, 0)
+            tournament.planes[name], d = create_plane(name, 0, 0)
+            debug += d
         list_values_t = values_plane(tournament.planes[name])
         list_values_h = values_plane(plane_h)
         for i in range(3, len(list_values_t)):
@@ -329,8 +331,8 @@ def add_heat_to_tournament(heat: Heat, tournament: Tournament) -> Tournament:
     return tournament
 
 
-def heat_f(p: Path, tournament: Tournament):
-    print(f'##Heat {p}')
+def heat_f(p: Path, tournament: Tournament) -> Tuple[Tournament, str]:
+    debug = f'##Heat {p}\n'
     file = []
     with open(p) as file_read:
         for line in file_read:
@@ -339,19 +341,18 @@ def heat_f(p: Path, tournament: Tournament):
     heat = analyse_first_line(file[0], heat)
     for line in file[1:]:
         heat = analyse_regular_line(line, heat)
-    for plane in heat.planes.values():
-        print(plane.craft_name, plane.death_order)
-    return add_heat_to_tournament(death_order_sort(heat), tournament)
+    return add_heat_to_tournament(death_order_sort(heat), tournament), debug
 
 
-def round_f(p: Path, tournament: Tournament) -> Tournament:
-    print(f'##Round {p}')
+def round_f(p: Path, tournament: Tournament) -> Tuple[Tournament, str]:
+    debug = f'##Round {p}\n'
     for f in p.iterdir():
         filename = f.name
         m = re.match(r'(?P<tag>\d{8})-Heat (?P<round_nbr>\d+)\.log$', filename)
         if m is not None:
-            tournament = heat_f(f, tournament)
-    return tournament
+            tournament, d = heat_f(f, tournament)
+            debug += d
+    return tournament, debug
 
 
 def create_table(tournament: Tournament, dictionary: Dict[int, str]) -> List[List[str]]:
@@ -389,21 +390,19 @@ def create_table(tournament: Tournament, dictionary: Dict[int, str]) -> List[Lis
     return table
 
 
-def table_diplay(table: List[List[str]]):
-    print(table)
+def table_diplay(table: List[List[str]]) -> Tuple[str, str]:
     list_lenght_columns = [0] * len(table[0])
     for line in table:
         for i, case in enumerate(line):
             if list_lenght_columns[i] < len(case):
                 list_lenght_columns[i] = len(case)
-    print(f'#table_display {list_lenght_columns}')
+    debug = f'#table_display {list_lenght_columns}\n'
     aff = ''
     for line in table:
         for i, case in enumerate(line):
             aff += case + ' ' * (list_lenght_columns[i] - len(case)) + ' : '
         aff += '\n'
-    print(aff)
-    input()
+    return aff, debug
 
 
 def csv_creator(p, table: List[List[str]]):
@@ -413,19 +412,36 @@ def csv_creator(p, table: List[List[str]]):
         for line in table:
             table_writer.writerow(line)
 
+from time import sleep
 
 def tournament_f(p: Path, dictonary: Dict[int, str]):
     """2"""
-    print('##Tournament')
+    debug = '##Tournament\n'
+    print('|' + '-' * 98 + '|')
+    nbr_file = len(list(p.iterdir()))
     tournament = Tournament(0, 0, {})
+    j = 0
     for f in p.iterdir():
         filename = f.name
-        print(f'#{filename}')
+        debug += f'#{filename}\n'
         m = re.match(r'Round (?P<nbr>\d+)', filename)
         if m is not None:
-            tournament = round_f(f, tournament)
+            tournament, d = round_f(f, tournament)
+            debug += d
+        j += 1
+        for i in range(round((j-1)/nbr_file*100), round(j/nbr_file*100)):
+            if i % 10 == 0:
+                print('|', end='')
+            elif i % 5 == 0:
+                print(':', end='')
+            else:
+                print('.', end='')
+    print()
     table = create_table(tournament, dictonary)
-    table_diplay(table)
+    display, d = table_diplay(table)
+    debug += d
+    print(debug)
+    input(display)
     csv_creator(p, table)
 
 
