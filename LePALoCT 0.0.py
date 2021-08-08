@@ -169,7 +169,7 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
     e_type = m['e_type']
     event = m['event']
     if e_type == 'ALIVE':
-        if event[:7] not in ('Débris', 'DÃ©bris') and event[-5:] not in ('Avion', 'avion'):
+        if event[:7] not in ('Débris', 'DÃ©bris') and event[-5:] not in ('Avion', 'avion', 'Probe') and event in heat.planes:
             heat.planes[event].dead_time = heat.duration
     elif e_type == 'DEAD':
         m = re.match(r'(?P<death_order>\d+):(?P<s>\d+).(?P<ds>\d+):(?P<name>.*)$', event)
@@ -231,16 +231,23 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
         if event == 'Mutual Annihilation':
             return heat
         m = re.match(r'(?P<result>[^:]+):(?P<team>.+)$', event)
-        team_text = loads(m['team'])
-        if type(team_text) == dict:
-            for name_plane in team_text['members']:
-                if name_plane not in heat.planes:
-                    heat.planes[name_plane] = create_plane(name_plane, -4, 1)
-            return heat
-        for dictionnary in team_text:
-            for name_plane in dictionnary['members']:
-                if name_plane not in heat.planes:
-                    heat.planes[name_plane] = create_plane(name_plane, -4, 1)
+        if m['result'] == 'Draw':
+            list_team = loads(m['team'])  # It looks like json
+            for team_text in list_team:
+                for name_plane in team_text['members']:
+                    if name_plane not in heat.planes:
+                        heat.planes[name_plane] = create_plane(name_plane, -4, 1)
+        elif m['result'] == 'Win':
+            team_text = loads(m['team'])
+            if type(team_text) == dict:
+                for name_plane in team_text['members']:
+                    if name_plane not in heat.planes:
+                        heat.planes[name_plane] = create_plane(name_plane, -4, 1)
+                return heat
+            for dictionnary in team_text:
+                for name_plane in dictionnary['members']:
+                    if name_plane not in heat.planes:
+                        heat.planes[name_plane] = create_plane(name_plane, -4, 1)
     elif e_type == 'DEADTEAMS':
         list_team = loads(event)  # It look like json
         for team_text in list_team:
@@ -323,7 +330,7 @@ def add_heat_to_tournament(heat: Heat, tournament: Tournament) -> Tournament:
 
 
 def heat_f(p: Path, tournament: Tournament):
-    print('##Heat {p}')
+    print(f'##Heat {p}')
     file = []
     with open(p) as file_read:
         for line in file_read:
@@ -332,6 +339,8 @@ def heat_f(p: Path, tournament: Tournament):
     heat = analyse_first_line(file[0], heat)
     for line in file[1:]:
         heat = analyse_regular_line(line, heat)
+    for plane in heat.planes.values():
+        print(plane.craft_name, plane.death_order)
     return add_heat_to_tournament(death_order_sort(heat), tournament)
 
 
@@ -391,7 +400,7 @@ def table_diplay(table: List[List[str]]):
     aff = ''
     for line in table:
         for i, case in enumerate(line):
-            aff += case + ' ' * (list_lenght_columns[i] - len(case)) + ':'
+            aff += case + ' ' * (list_lenght_columns[i] - len(case)) + ' : '
         aff += '\n'
     print(aff)
     input()
@@ -465,7 +474,6 @@ def creat_multi_tournament(p: Path, list_tournaments: List) -> Path:
 
 def search_tournament(p: Path, dictonary: Dict[int, str]) -> Path:
     """1"""
-
     def set_list(text, nbr_tournaments):
         separated_text = text.split('-')
         numbers = []
