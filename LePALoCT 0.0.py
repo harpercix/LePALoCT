@@ -2,12 +2,13 @@ import csv
 from json import loads
 from pathlib import Path
 import re
-from typing import List, Dict, Tuple, Union
+from typing import List, Dict, Tuple, Union, Any
 
 translations = {'FR': {0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dans "Logs" ou dans un tournoi.',
                        10: 'Choisis un ou plusieurs tournois parmis ceux ci (separes par des "-") :\n',
                        11: 'Il faut un ou plusieurs nombres (separes par des "-", exemple : "42-666-512") entre ',
                        12: '\n[numeros] : ',
+                       998: 'avec',
                        999: '[Entrer] pour continuer'},
                 'EN': {0: 'LePALoCT isn\'t in the good folder.\nIt would be in "Logs" or in a tournament.',
                        10: 'Choose one or several tournaments (separated with "-"):\n',
@@ -49,7 +50,25 @@ translations = {'FR': {0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dan
                        133: 'HP',
                        134: 'nbr heat',
                        135: 'team',
+                       200: 'Longest Heat:',
+                       201: 'Shortest Heat:',
+                       998: 'with',
                        999: '[Enter] to continue'}}
+
+column_name = ['area', 'cat', 'player', 'craft_name', 'nbr_b_given', 'nbr_b_received',
+               'nbr_m_given', 'nbr_m_received', 'nbr_r_given', 'nbr_r_received',
+               'hit_b_given', 'hit_b_received', 'hit_m_given', 'hit_m_received',
+               'b_damages_given', 'b_damages_received', 'm_damages_given', 'm_damages_received',
+               'parts_destructed_r_given', 'parts_destructed_r_received',
+               'nbr_clean_kill_b_given', 'nbr_clean_kill_b_received',
+               'nbr_clean_kill_m_given', 'nbr_clean_kill_m_received',
+               'nbr_clean_kill_r_given', 'nbr_clean_kill_r_received',
+               'alive', 'suicide', 'mia', 'b_fired', 'b_hit', 'death_order',
+               'dead_time', 'hp', 'nbr heat', 'team']
+
+column_to_nbr: Dict[int, Union[str, Any]] = {}
+for i, column in enumerate(column_name):
+    column_to_nbr[column] = i
 
 
 class Plane:
@@ -114,8 +133,9 @@ class Tournament:
 
 
 class Heat(Tournament):
-    def __init__(self, duration: int, max_duration: int, planes: Dict[str, Plane]):
+    def __init__(self, name: str, duration: int, max_duration: int, planes: Dict[str, Plane]):
         super().__init__(duration, max_duration, planes)
+        self.name = name
 
 
 def name_separator(name: str) -> Tuple[str, str, str, str, Union[str, None], str]:
@@ -169,7 +189,8 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
     e_type = m['e_type']
     event = m['event']
     if e_type == 'ALIVE':
-        if event[:7] not in ('Débris', 'DÃ©bris') and event[-5:] not in ('Avion', 'avion', 'Probe') and event in heat.planes:
+        if event[:7] not in ('Débris', 'DÃ©bris') and event[-5:] not in (
+        'Avion', 'avion', 'Probe') and event in heat.planes:
             heat.planes[event].dead_time = heat.duration
     elif e_type == 'DEAD':
         m = re.match(r'(?P<death_order>\d+):(?P<s>\d+).(?P<ds>\d+):(?P<name>.*)$', event)
@@ -331,46 +352,37 @@ def add_heat_to_tournament(heat: Heat, tournament: Tournament) -> Tournament:
     return tournament
 
 
-def heat_f(p: Path, tournament: Tournament) -> Tuple[Tournament, str]:
+def heat_f(p: Path) -> Tuple[Heat, str]:
     debug = f'##Heat {p}\n'
     file = []
     with open(p) as file_read:
         for line in file_read:
             file.append(line)
-    heat = Heat(-1, -1, {})
+    heat = Heat(str(p), -1, -1, {})
     heat = analyse_first_line(file[0], heat)
     for line in file[1:]:
-        heat = analyse_regular_line(line, heat)
-    return add_heat_to_tournament(death_order_sort(heat), tournament), debug
+        if line != "\n":
+            heat = analyse_regular_line(line, heat)
+    return heat, debug
 
 
-def round_f(p: Path, tournament: Tournament) -> Tuple[Tournament, str]:
+def round_f(p: Path, tournament: Tournament) -> Tuple[Tournament, List[Heat], str]:
     debug = f'##Round {p}\n'
+    heats_list = []
     for f in p.iterdir():
         filename = f.name
         m = re.match(r'(?P<tag>\d{8})-Heat (?P<round_nbr>\d+)\.log$', filename)
         if m is not None:
-            tournament, d = heat_f(f, tournament)
+            heat, d = heat_f(f)
+            tournament = add_heat_to_tournament(death_order_sort(heat), tournament)
+            heats_list.append(heat)
             debug += d
-    return tournament, debug
+    return tournament, heats_list, debug
 
 
 def create_table(tournament: Tournament, dictionary: Dict[int, str]) -> List[List[str]]:
     """10"""
-    column_name = ['area', 'cat', 'player', 'craft_name', 'nbr_b_given', 'nbr_b_received',
-                   'nbr_m_given', 'nbr_m_received', 'nbr_r_given', 'nbr_r_received',
-                   'hit_b_given', 'hit_b_received', 'hit_m_given', 'hit_m_received',
-                   'b_damages_given', 'b_damages_received', 'm_damages_given', 'm_damages_received',
-                   'parts_destructed_r_given', 'parts_destructed_r_received',
-                   'nbr_clean_kill_b_given', 'nbr_clean_kill_b_received',
-                   'nbr_clean_kill_m_given', 'nbr_clean_kill_m_received',
-                   'nbr_clean_kill_r_given', 'nbr_clean_kill_r_received',
-                   'alive', 'suicide', 'mia', 'b_fired', 'b_hit', 'death_order',
-                   'dead_time', 'hp', 'nbr heat', 'team']
     column_organisation = column_name[:]
-    column_to_nbr = {}
-    for i, column in enumerate(column_name):
-        column_to_nbr[column] = i
     columns = []
     for name, plane in tournament.planes.items():
         values_of_planes = {}
@@ -415,8 +427,9 @@ def csv_creator(p, table: List[List[str]]):
 
 def tournament_f(p: Path, dictonary: Dict[int, str]):
     """2"""
+    heats_list = []
     debug = '##Tournament\n'
-    print('|' + '-' * 98 + '|')
+    print('Progress bar:\n|' + '-' * 98 + '|')
     nbr_file = len(list(p.iterdir()))
     tournament = Tournament(0, 0, {})
     j = 0
@@ -425,10 +438,11 @@ def tournament_f(p: Path, dictonary: Dict[int, str]):
         debug += f'#{filename}\n'
         m = re.match(r'Round (?P<nbr>\d+)', filename)
         if m is not None:
-            tournament, d = round_f(f, tournament)
+            tournament, hl, d = round_f(f, tournament)
+            heats_list.extend(hl)
             debug += d
         j += 1
-        for i in range(round((j-1)/nbr_file*100), round(j/nbr_file*100)):
+        for i in range(round((j - 1) / nbr_file * 100), round(j / nbr_file * 100)):
             if i % 10 == 0:
                 print('|', end='')
             elif i % 5 == 0:
@@ -442,6 +456,32 @@ def tournament_f(p: Path, dictonary: Dict[int, str]):
     print(debug)
     input(display)
     csv_creator(p, table)
+
+
+def success_f(heats_list: List[Heat], planes: List[Plane], dictionary: Dict[int, str]):
+    print("\n\nSUCCESS:")
+    maxi_duration = 0
+    heat_name = 'Non rien de rien'
+    for heat in heats_list:
+        if maxi_duration < heat.duration:
+            maxi_duration = heat.duration
+            heat_name = heat.name
+        if maxi_duration == heat.max_duration:
+            break
+    else:
+        if heat_name != 'Non rien de rien':
+            print(f'{dictionary[200]} {heat_name} {dictionary[998]} {maxi_duration}s')
+    mini_duration = 0
+    heat_name = 'Non rien de rien'
+    for heat in heats_list:
+        if mini_duration < heat.duration:
+            mini_duration = heat.duration
+            heat_name = heat.name
+        if mini_duration == heat.max_duration:
+            break
+    else:
+        if heat_name != 'Non rien de rien':
+            print(f'{dictionary[201]} {heat_name} {dictionary[998]} {mini_duration}s')
 
 
 def creat_multi_tournament(p: Path, list_tournaments: List) -> Path:
@@ -489,6 +529,7 @@ def creat_multi_tournament(p: Path, list_tournaments: List) -> Path:
 
 def search_tournament(p: Path, dictonary: Dict[int, str]) -> Path:
     """1"""
+
     def set_list(text, nbr_tournaments):
         separated_text = text.split('-')
         numbers = []
@@ -525,6 +566,7 @@ def search_tournament(p: Path, dictonary: Dict[int, str]) -> Path:
 
 def main():
     """0"""
+
     def is_a_tournament(name: str) -> bool:
         m = re.match(r'Tournament (?P<nbr>\d+)', name)
         if m is not None:
