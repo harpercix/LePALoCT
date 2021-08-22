@@ -52,6 +52,7 @@ translations = {'FR': {0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dan
                        135: 'team',
                        200: 'Longest Heat:',
                        201: 'Shortest Heat:',
+                       202: 'Max kills',
                        998: 'with',
                        999: '[Enter] to continue'}}
 
@@ -124,6 +125,17 @@ class Plane:
         self.b_hit = hit
         self.b_fired = fired
 
+    def display(self, dictionary: Dict[int, str]):
+        return table_diplay(create_table(Tournament(0, 0, {self.name_creator(): self}), dictionary))
+    
+    def name_creator(self):
+        if self.team is None:
+            return f'{self.area}-{self.cat}-{self.player}-{self.craft_name}'
+        return f'{self.area}-{self.cat}-{self.team}-{self.player}-{self.craft_name}'
+
+    def count_nbr_death(self):
+        return self.nbr_clean_kill_b_given + self.nbr_clean_kill_m_given + self.nbr_clean_kill_r_given
+
 
 class Tournament:
     def __init__(self, duration: int, max_duration: int, planes: Dict[str, Plane]):
@@ -136,6 +148,14 @@ class Heat(Tournament):
     def __init__(self, name: str, duration: int, max_duration: int, planes: Dict[str, Plane]):
         super().__init__(duration, max_duration, planes)
         self.name = name
+    
+    def death_order_sort(self):
+        max_death_order = 0
+        for avion in self.planes.values():
+            max_death_order = max(avion.death_order, max_death_order)
+        for avion in self.planes.values():
+            if avion.death_order == -1:
+                avion.death_order = max_death_order + 1
 
 
 def name_separator(name: str) -> Tuple[str, str, str, str, Union[str, None], str]:
@@ -146,7 +166,6 @@ def name_separator(name: str) -> Tuple[str, str, str, str, Union[str, None], str
         if m is None:
             debug = f'#ERROR incorect name : "{name}"\n'
             return 'NA', 'NA', 'NA', name, None, debug
-    else:
         team = m['team']
     n = re.match('(?P<craft_name>[^_]+)_(?P<nbr>.+)', m['craft_name'])
     if n is None:
@@ -289,16 +308,6 @@ def analyse_first_line(line: str, heat: Heat) -> Heat:
     return heat
 
 
-def death_order_sort(heat: Heat) -> Heat:
-    max_death_order = 0
-    for avion in heat.planes.values():
-        max_death_order = max(avion.death_order, max_death_order)
-    for avion in heat.planes.values():
-        if avion.death_order == -1:
-            avion.death_order = max_death_order + 1
-    return heat
-
-
 def values_plane(plane: Plane) -> List[Union[str, int, float]]:
     return [plane.area, plane.cat, plane.player, plane.craft_name, plane.nbr_b_given, plane.nbr_b_received,
             plane.nbr_m_given, plane.nbr_m_received, plane.nbr_r_given, plane.nbr_r_received,
@@ -374,7 +383,8 @@ def round_f(p: Path, tournament: Tournament) -> Tuple[Tournament, List[Heat], st
         m = re.match(r'(?P<tag>\d{8})-Heat (?P<round_nbr>\d+)\.log$', filename)
         if m is not None:
             heat, d = heat_f(f)
-            tournament = add_heat_to_tournament(death_order_sort(heat), tournament)
+            heat.death_order_sort()
+            tournament = add_heat_to_tournament(heat, tournament)
             heats_list.append(heat)
             debug += d
     return tournament, heats_list, debug
@@ -389,8 +399,8 @@ def create_table(tournament: Tournament, dictionary: Dict[int, str]) -> List[Lis
         for i, value in enumerate(values_plane(plane)):
             values_of_planes[column_name[i]] = (i, value)
         columns.append(values_of_planes)
-    table: List[List[Union[str]]] = []
-    first_line: List[Union[str]] = []
+    table: List[List[str]] = []
+    first_line: List[str] = []
     for column_title in column_organisation:
         first_line.append(dictionary[100 + column_to_nbr[column_title]])
     table.append(first_line)
@@ -456,9 +466,15 @@ def tournament_f(p: Path, dictonary: Dict[int, str]):
     print(debug)
     input(display)
     csv_creator(p, table)
+    success_f(heats_list, tournament.planes, dictonary)
+    input()
 
 
-def success_f(heats_list: List[Heat], planes: List[Plane], dictionary: Dict[int, str]):
+def count_nbr_death(plane: Plane):
+    return plane.nbr_clean_kill_b_given + plane.nbr_clean_kill_m_given + plane.nbr_clean_kill_r_given
+
+
+def success_f(heats_list: List[Heat], planes: Dict[str, Plane], dictionary: Dict[int, str]):
     print("\n\nSUCCESS:")
     maxi_duration = 0
     heat_name = 'Non rien de rien'
@@ -466,7 +482,7 @@ def success_f(heats_list: List[Heat], planes: List[Plane], dictionary: Dict[int,
         if maxi_duration < heat.duration:
             maxi_duration = heat.duration
             heat_name = heat.name
-        if maxi_duration == heat.max_duration:
+        elif maxi_duration == heat.max_duration:
             break
     else:
         if heat_name != 'Non rien de rien':
@@ -474,14 +490,25 @@ def success_f(heats_list: List[Heat], planes: List[Plane], dictionary: Dict[int,
     mini_duration = 0
     heat_name = 'Non rien de rien'
     for heat in heats_list:
-        if mini_duration < heat.duration:
+        if mini_duration > heat.duration:
             mini_duration = heat.duration
             heat_name = heat.name
-        if mini_duration == heat.max_duration:
+        elif mini_duration == heat.max_duration:
             break
     else:
         if heat_name != 'Non rien de rien':
             print(f'{dictionary[201]} {heat_name} {dictionary[998]} {mini_duration}s')
+    craft_name = 'Non rien de rien'
+    nbr_dead = 0
+    for plane in planes.values():
+        if count_nbr_death(plane) > nbr_dead:
+            nbr_dead += count_nbr_death(plane)
+            craft_name = plane.name_creator()
+        elif nbr_dead == count_nbr_death(plane):
+            break
+    else:
+        if heat_name != 'Non rien de rien':
+            print(f'{dictionary[202]} {craft_name} {dictionary[998]} {nbr_dead}')
 
 
 def creat_multi_tournament(p: Path, list_tournaments: List) -> Path:
