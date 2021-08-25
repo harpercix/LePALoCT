@@ -46,6 +46,7 @@ translations = {'FR': {0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dan
                        135: 'Team',
                        136: '',
                        137: 'Accuracy',
+                       138: 'Score',
                        200: 'Longest Heat:',
                        201: 'Shortest Heat:',
                        202: 'Max kills',
@@ -93,6 +94,7 @@ translations = {'FR': {0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dan
                        135: 'team',
                        136: '',
                        137: 'accuracy',
+                       138: 'Score',
                        200: 'Longest Heat:',
                        201: 'Shortest Heat:',
                        202: 'Max kills',
@@ -108,7 +110,7 @@ column_names = ['area', 'cat', 'player', 'craft_name', 'nbr_b_given', 'nbr_b_rec
                 'nbr_clean_kill_m_given', 'nbr_clean_kill_m_received',
                 'nbr_clean_kill_r_given', 'nbr_clean_kill_r_received',
                 'alive', 'suicide', 'mia', 'b_fired', 'b_hit', 'death_order',
-                'dead_time', 'hp', 'nbr heat', 'team', '', 'accuracy']
+                'dead_time', 'hp', 'nbr heat', 'team', '', 'accuracy', 'score']
 
 column_to_nbr: Dict[str, int] = {}
 for i, column in enumerate(column_names):
@@ -168,8 +170,8 @@ class Plane:
         self.b_hit = hit
         self.b_fired = fired
 
-    def display(self, dictionary: Dict[int, str]):
-        return table_diplay(create_table(Tournament(0, 0, {self.name_creator(): self}), dictionary))
+    def display(self, dictionary: Dict[int, str], scoring: List[float]):
+        return table_diplay(create_table(Tournament(0, 0, {self.name_creator(): self}), dictionary, scoring))
 
     def name_creator(self):
         if self.team is None:
@@ -196,6 +198,15 @@ class Plane:
             return self.b_hit/self.b_fired
         return 0
 
+    def score_f(self, scoring: List[float]):
+        score = 0
+        i = 0
+        for value in self.values_plane():
+            if i < len(scoring) and type(value) is int:
+                score += value * scoring[i]
+            i += 1
+        return score
+
 
 class Tournament:
     def __init__(self, duration: int, max_duration: int, planes: Dict[str, Plane]):
@@ -216,6 +227,12 @@ class Heat(Tournament):
         for avion in self.planes.values():
             if avion.death_order == -1:
                 avion.death_order = max_death_order + 1
+
+
+class Round(Tournament):
+    def __init__(self, name: str, duration: int, max_duration: int, planes: Dict[str, Plane]):
+        super().__init__(duration, max_duration, planes)
+        self.name = name
 
 
 def name_separator(name: str) -> Tuple[str, str, str, str, Union[str, None], str]:
@@ -411,7 +428,7 @@ def add_heat_to_tournament(heat: Heat, tournament: Tournament) -> Tournament:
     return tournament
 
 
-def heat_f(p: Path) -> Tuple[Heat, str]:
+def heat_f(p: Path, dictionary: Dict[int, str], scoring: List[float]) -> Tuple[Heat, str]:
     debug = f'##Heat {p}\n'
     file = []
     with p.open() as file_read:
@@ -422,25 +439,34 @@ def heat_f(p: Path) -> Tuple[Heat, str]:
     for line in file[1:]:
         if line != "\n":
             heat = analyse_regular_line(line, heat)
+    table = create_table(heat, dictionary, scoring)
+    csv_creator(p.parent, table, p.stem)
     return heat, debug
 
 
-def round_f(p: Path, tournament: Tournament) -> Tuple[Tournament, List[Heat], str]:
+def round_f(p: Path, tournament: Tournament, dictionary: Dict[int, str], scoring: List[float]) -> Tuple[Tournament, List[Heat], str]:
     debug = f'##Round {p}\n'
     heats_list = []
+    round_for_table = Round(p.name, 0, 0, {})
     for f in p.iterdir():
         filename = f.name
         m = re.fullmatch(r'(?P<tag>\d{8})-Heat (?P<round_nbr>\d+)\.log', filename)
         if m is not None:
-            heat, d = heat_f(f)
+            heat, d = heat_f(f, dictionary, scoring)
             heat.death_order_sort()
             tournament = add_heat_to_tournament(heat, tournament)
             heats_list.append(heat)
             debug += d
+            for name, plane in heat.planes.items():
+                round_for_table.planes[name] = plane
+            round_for_table.max_duration += heat.max_duration
+            round_for_table.duration += heat.duration
+    table = create_table(round_for_table, dictionary, scoring)
+    csv_creator(p.parent, table, p.stem)
     return tournament, heats_list, debug
 
 
-def create_table(tournament: Tournament, dictionary: Dict[int, str]) -> List[List[str]]:
+def create_table(tournament: Tournament, dictionary: Dict[int, str], scoring: List[float]) -> List[List[str]]:
     """10"""
     column_table = ['player', 'craft_name', 'cat', 'area', 'team',
                     'dead_time', 'alive', 'death_order', 'hp', 'suicide', 'mia', '',
@@ -450,7 +476,7 @@ def create_table(tournament: Tournament, dictionary: Dict[int, str]) -> List[Lis
                     'nbr_m_received',  'm_damages_received', 'hit_m_received', 'nbr_clean_kill_m_received', '',
                     'nbr_r_given',  'parts_destructed_r_given', '', '', '', 'nbr_clean_kill_r_given', '',
                     'nbr_r_received',  'parts_destructed_r_received', '', 'nbr_clean_kill_r_received', '',
-                    ]
+                    'score']
     table: List[List[str]] = []
     first_line: List[str] = []
     for column_table_name in column_table:
@@ -463,7 +489,7 @@ def create_table(tournament: Tournament, dictionary: Dict[int, str]) -> List[Lis
             if column_to_nbr[column_table_name] < len(plane_values):
                 line.append(str(plane_values[column_to_nbr[column_table_name]]))
             else:
-                other_values: Dict['str', 'str'] = {'': '', 'accuracy': str(plane.accuracy())}
+                other_values: Dict['str', 'str'] = {'': '', 'accuracy': str(plane.accuracy()), 'score': str(plane.score_f(scoring))}
                 line.append(other_values[column_table_name])
         table.append(line)
     return table
@@ -484,15 +510,15 @@ def table_diplay(table: List[List[str]]) -> Tuple[str, str]:
     return aff, debug
 
 
-def csv_creator(p, table: List[List[str]]):
-    file_name = p / Path(f'table {p.name}.csv')
+def csv_creator(p, table: List[List[str]], name: str):
+    file_name = p / Path(f'{name}.csv')
     with open(file_name, mode='w') as csv_table:
         table_writer = csv.writer(csv_table, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL, dialect='unix')
         for line in table:
             table_writer.writerow(line)
 
 
-def tournament_f(p: Path, dictonary: Dict[int, str]):
+def tournament_f(p: Path, dictionary: Dict[int, str], scoring: List[float]):
     """2"""
     heats_list = []
     debug = '##Tournament\n'
@@ -503,9 +529,9 @@ def tournament_f(p: Path, dictonary: Dict[int, str]):
     for f in p.iterdir():
         filename = f.name
         debug += f'#{filename}\n'
-        m = re.match(r'Round (?P<nbr>\d+)', filename)
+        m = re.match(r'Round (?P<nbr>\d+)$', filename)
         if m is not None:
-            tournament, hl, d = round_f(f, tournament)
+            tournament, hl, d = round_f(f, tournament, dictionary, scoring)
             heats_list.extend(hl)
             debug += d
         j += 1
@@ -517,13 +543,13 @@ def tournament_f(p: Path, dictonary: Dict[int, str]):
             else:
                 print('.', end='')
     print()
-    table = create_table(tournament, dictonary)
+    table = create_table(tournament, dictionary, scoring)
     display, d = table_diplay(table)
     debug += d
     print(debug)
     input(display)
-    csv_creator(p, table)
-    success_f(heats_list, tournament.planes, dictonary)
+    csv_creator(p, table, f'tournament {p.name}')
+    success_f(heats_list, tournament.planes, dictionary)
     input()
 
 
@@ -611,9 +637,8 @@ def creat_multi_tournament(p: Path, list_tournaments: List[Path]) -> Path:
     return p_tt
 
 
-def search_tournament(p: Path, dictonary: Dict[int, str]) -> Path:
+def search_tournament(p: Path, dictionary: Dict[int, str]) -> Path:
     """1"""
-
     def set_list(text, nbr_tournaments):
         separated_text = text.split('-')
         numbers = []
@@ -631,15 +656,15 @@ def search_tournament(p: Path, dictonary: Dict[int, str]) -> Path:
     for f in p.iterdir():
         if f.name[0:11] == 'Tournament ' and len(f.name) == 19:
             tournois.append(f)
-    aff = dictonary[10]
+    aff = dictionary[10]
     for i, t in enumerate(tournois):
         aff += f'[{i}] : {t.name}\n'
-    aff += dictonary[12]
+    aff += dictionary[12]
     answere = None
     while answere is None:
         answere = set_list(input(aff), len(tournois) - 1)
         if answere is None:
-            print(dictonary[11] + f'[0;{len(tournois) - 1}]')
+            print(dictionary[11] + f'[0;{len(tournois) - 1}]')
     tournois_selectionnes = []
     for i in answere:
         tournois_selectionnes.append(tournois[i])
@@ -648,9 +673,28 @@ def search_tournament(p: Path, dictonary: Dict[int, str]) -> Path:
     return creat_multi_tournament(p, tournois_selectionnes)
 
 
+def load_config_file(p: Path) -> List[float]:
+    """file : 'a b c
+    d e
+    f g
+    h i j'
+    score = [a*d, a*e, b*f, b*g, c*h, c*i, c*j]"""
+    score_lines: List[List[float]] = []
+    with p.open() as config_file:
+        for config_file_line in config_file:
+            score_line: List[float] = []
+            for value in config_file_line.split(' '):
+                score_line.append(float(value))
+            score_lines.append(score_line)
+    real_score = []
+    for i, multiplicater in enumerate(score_lines[0]):
+        for value in score_lines[i+1]:
+            real_score.append(value * multiplicater)
+    return real_score
+
+
 def main():
     """0"""
-
     def is_a_tournament(name: str) -> bool:
         m = re.match(r'Tournament (?P<nbr>\d+)', name)
         if m is not None:
@@ -660,10 +704,16 @@ def main():
 
     p = Path.cwd()
     dictionary: Dict[int, str] = translations['FR']
+    for f in p.iterdir():
+        if f.name[:15] == 'LePALoCT config':
+            scoring: List[float] = load_config_file(f)
+            break
+    else:
+        scoring: List[float] = []
     if p.name == 'Logs':
         p = search_tournament(p, dictionary)
     if is_a_tournament(p.name):
-        tournament_f(p, dictionary)
+        tournament_f(p, dictionary, scoring)
     else:
         print(dictionary[0])
         input(dictionary[999])
