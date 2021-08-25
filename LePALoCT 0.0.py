@@ -2,12 +2,53 @@ import csv
 from json import loads
 from pathlib import Path
 import re
-from typing import List, Dict, Tuple, Union, Any
+from typing import List, Dict, Tuple, Union
 
 translations = {'FR': {0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dans "Logs" ou dans un tournoi.',
                        10: 'Choisis un ou plusieurs tournois parmis ceux ci (separes par des "-") :\n',
                        11: 'Il faut un ou plusieurs nombres (separes par des "-", exemple : "42-666-512") entre ',
                        12: '\n[numeros] : ',
+                       100: 'Segment',
+                       101: 'Category',
+                       102: 'Participants',
+                       103: 'Crafts',
+                       104: 'Nb Targets',
+                       105: 'Nb Attacks',
+                       106: 'Nb Targets',
+                       107: 'Nb Attacks',
+                       108: 'Nb Targets',
+                       109: 'Nb Attacks',
+                       110: 'Fired',
+                       111: 'Touched',
+                       112: 'Fired',
+                       113: 'Touched',
+                       114: 'Damages',
+                       115: 'Damages',
+                       116: 'Damages',
+                       117: 'Damages',
+                       118: 'Damages',
+                       119: 'Damages',
+                       120: 'CleanKills',
+                       121: 'CleanKills',
+                       122: 'CleanKills',
+                       123: 'CleanKills',
+                       124: 'CleanKills',
+                       125: 'CleanKills',
+                       126: 'Nb Alive',
+                       127: 'Suicide',
+                       128: 'MIA',
+                       129: 'Fired',
+                       130: 'Hits',
+                       131: 'Death Order',
+                       132: 'Time Alive',
+                       133: 'HP (%)',
+                       134: 'nbr heat',
+                       135: 'Team',
+                       136: '',
+                       137: 'Accuracy',
+                       200: 'Longest Heat:',
+                       201: 'Shortest Heat:',
+                       202: 'Max kills',
                        998: 'avec',
                        999: '[Entrer] pour continuer'},
                 'EN': {0: 'LePALoCT isn\'t in the good folder.\nIt would be in "Logs" or in a tournament.',
@@ -50,25 +91,27 @@ translations = {'FR': {0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dan
                        133: 'HP',
                        134: 'nbr heat',
                        135: 'team',
+                       136: '',
+                       137: 'accuracy',
                        200: 'Longest Heat:',
                        201: 'Shortest Heat:',
                        202: 'Max kills',
                        998: 'with',
                        999: '[Enter] to continue'}}
 
-column_name = ['area', 'cat', 'player', 'craft_name', 'nbr_b_given', 'nbr_b_received',
-               'nbr_m_given', 'nbr_m_received', 'nbr_r_given', 'nbr_r_received',
-               'hit_b_given', 'hit_b_received', 'hit_m_given', 'hit_m_received',
-               'b_damages_given', 'b_damages_received', 'm_damages_given', 'm_damages_received',
-               'parts_destructed_r_given', 'parts_destructed_r_received',
-               'nbr_clean_kill_b_given', 'nbr_clean_kill_b_received',
-               'nbr_clean_kill_m_given', 'nbr_clean_kill_m_received',
-               'nbr_clean_kill_r_given', 'nbr_clean_kill_r_received',
-               'alive', 'suicide', 'mia', 'b_fired', 'b_hit', 'death_order',
-               'dead_time', 'hp', 'nbr heat', 'team']
+column_names = ['area', 'cat', 'player', 'craft_name', 'nbr_b_given', 'nbr_b_received',
+                'nbr_m_given', 'nbr_m_received', 'nbr_r_given', 'nbr_r_received',
+                'hit_b_given', 'hit_b_received', 'hit_m_given', 'hit_m_received',
+                'b_damages_given', 'b_damages_received', 'm_damages_given', 'm_damages_received',
+                'parts_destructed_r_given', 'parts_destructed_r_received',
+                'nbr_clean_kill_b_given', 'nbr_clean_kill_b_received',
+                'nbr_clean_kill_m_given', 'nbr_clean_kill_m_received',
+                'nbr_clean_kill_r_given', 'nbr_clean_kill_r_received',
+                'alive', 'suicide', 'mia', 'b_fired', 'b_hit', 'death_order',
+                'dead_time', 'hp', 'nbr heat', 'team', '', 'accuracy']
 
-column_to_nbr: Dict[int, Union[str, Any]] = {}
-for i, column in enumerate(column_name):
+column_to_nbr: Dict[str, int] = {}
+for i, column in enumerate(column_names):
     column_to_nbr[column] = i
 
 
@@ -127,7 +170,7 @@ class Plane:
 
     def display(self, dictionary: Dict[int, str]):
         return table_diplay(create_table(Tournament(0, 0, {self.name_creator(): self}), dictionary))
-    
+
     def name_creator(self):
         if self.team is None:
             return f'{self.area}-{self.cat}-{self.player}-{self.craft_name}'
@@ -148,6 +191,11 @@ class Plane:
                 self.alive, self.suicide, self.mia, self.b_fired, self.b_hit, self.death_order,
                 self.dead_time, self.hp, self.nbr_heat_done, self.team]
 
+    def accuracy(self):
+        if self.b_fired > 0:
+            return self.b_hit/self.b_fired
+        return 0
+
 
 class Tournament:
     def __init__(self, duration: int, max_duration: int, planes: Dict[str, Plane]):
@@ -160,7 +208,7 @@ class Heat(Tournament):
     def __init__(self, name: str, duration: int, max_duration: int, planes: Dict[str, Plane]):
         super().__init__(duration, max_duration, planes)
         self.name = name
-    
+
     def death_order_sort(self):
         max_death_order = 0
         for avion in self.planes.values():
@@ -221,7 +269,7 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
     event = m['event']
     if e_type == 'ALIVE':
         if event[:7] not in ('Débris', 'DÃ©bris') and event[-5:] not in (
-        'Avion', 'avion', 'Probe') and event in heat.planes:
+                'Avion', 'avion', 'Probe') and event in heat.planes:
             heat.planes[event].dead_time = heat.duration
     elif e_type == 'DEAD':
         m = re.match(r'(?P<death_order>\d+):(?P<s>\d+).(?P<ds>\d+):(?P<name>.*)$', event)
@@ -324,16 +372,16 @@ def analyse_first_line(line: str, heat: Heat) -> Heat:
 
 
 def create_complet_plane(values: Tuple):
-    area, cat, player, craft_name, nbr_b_given, nbr_b_received, \
-    nbr_m_given, nbr_m_received, nbr_r_given, nbr_r_received, \
-    hit_b_given, hit_b_received, hit_m_given, hit_m_received, \
-    b_damages_given, b_damages_received, m_damages_given, m_damages_received, \
-    parts_destructed_r_given, parts_destructed_r_received, \
-    nbr_clean_kill_b_given, nbr_clean_kill_b_received, \
-    nbr_clean_kill_m_given, nbr_clean_kill_m_received, \
-    nbr_clean_kill_r_given, nbr_clean_kill_r_received, \
-    alive, suicide, mia, b_fired, b_hit, death_order, \
-    dead_time, hp, nbr_heat_done, team = values
+    (area, cat, player, craft_name, nbr_b_given, nbr_b_received,
+     nbr_m_given, nbr_m_received, nbr_r_given, nbr_r_received,
+     hit_b_given, hit_b_received, hit_m_given, hit_m_received,
+     b_damages_given, b_damages_received, m_damages_given, m_damages_received,
+     parts_destructed_r_given, parts_destructed_r_received,
+     nbr_clean_kill_b_given, nbr_clean_kill_b_received,
+     nbr_clean_kill_m_given, nbr_clean_kill_m_received,
+     nbr_clean_kill_r_given, nbr_clean_kill_r_received,
+     alive, suicide, mia, b_fired, b_hit, death_order,
+     dead_time, hp, nbr_heat_done, team) = values
     return Plane(area, cat, player, craft_name, nbr_b_given, nbr_b_received,
                  nbr_m_given, nbr_m_received, nbr_r_given, nbr_r_received,
                  hit_b_given, hit_b_received, hit_m_given, hit_m_received,
@@ -394,22 +442,29 @@ def round_f(p: Path, tournament: Tournament) -> Tuple[Tournament, List[Heat], st
 
 def create_table(tournament: Tournament, dictionary: Dict[int, str]) -> List[List[str]]:
     """10"""
-    column_organisation = column_name[:]
-    columns = []
-    for name, plane in tournament.planes.items():
-        values_of_planes = {}
-        for i, value in enumerate(plane.values_plane()):
-            values_of_planes[column_name[i]] = (i, value)
-        columns.append(values_of_planes)
+    column_table = ['player', 'craft_name', 'cat', 'area', 'team',
+                    'dead_time', 'alive', 'death_order', 'hp', 'suicide', 'mia', '',
+                    'nbr_b_given', 'b_damages_given', 'b_fired', 'b_hit', 'accuracy', 'nbr_clean_kill_b_given', '',
+                    'nbr_b_received', 'b_damages_received', 'hit_b_received', 'nbr_clean_kill_b_given', '',
+                    'nbr_m_given',  'm_damages_given', 'hit_m_given', '', '', 'nbr_clean_kill_m_given', '',
+                    'nbr_m_received',  'm_damages_received', 'hit_m_received', 'nbr_clean_kill_m_received', '',
+                    'nbr_r_given',  'parts_destructed_r_given', '', '', '', 'nbr_clean_kill_r_given', '',
+                    'nbr_r_received',  'parts_destructed_r_received', '', 'nbr_clean_kill_r_received', '',
+                    ]
     table: List[List[str]] = []
     first_line: List[str] = []
-    for column_title in column_organisation:
-        first_line.append(dictionary[100 + column_to_nbr[column_title]])
+    for column_table_name in column_table:
+        first_line.append(dictionary[100 + column_to_nbr[column_table_name]])
     table.append(first_line)
-    for plane_line in columns:
-        line: List[Union[str]] = []
-        for columns_title in column_organisation:
-            line.append(str(plane_line[columns_title][1]))
+    for plane in tournament.planes.values():
+        line = []
+        plane_values = plane.values_plane()
+        for column_table_name in column_table:
+            if column_to_nbr[column_table_name] < len(plane_values):
+                line.append(str(plane_values[column_to_nbr[column_table_name]]))
+            else:
+                other_values: Dict['str', 'str'] = {'': '', 'accuracy': str(plane.accuracy())}
+                line.append(other_values[column_table_name])
         table.append(line)
     return table
 
@@ -604,7 +659,7 @@ def main():
         return m is not None
 
     p = Path.cwd()
-    dictionary: Dict[int, str] = translations['EN']
+    dictionary: Dict[int, str] = translations['FR']
     if p.name == 'Logs':
         p = search_tournament(p, dictionary)
     if is_a_tournament(p.name):
