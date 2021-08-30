@@ -4,7 +4,8 @@ from pathlib import Path
 import re
 from typing import List, Dict, Tuple, Union
 
-translations = {'FR': {0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dans "Logs" ou dans un tournoi.',
+translations = {'FR': {-1: 'FR',
+                       0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dans "Logs" ou dans un tournoi.',
                        10: 'Choisis un ou plusieurs tournois parmis ceux ci (separes par des "-") :\n',
                        11: 'Il faut un ou plusieurs nombres (separes par des "-", exemple : "42-666-512") entre ',
                        12: '\n[numeros] : ',
@@ -52,7 +53,8 @@ translations = {'FR': {0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dan
                        202: 'Max kills',
                        998: 'avec',
                        999: '[Entrer] pour continuer'},
-                'EN': {0: 'LePALoCT isn\'t in the good folder.\nIt would be in "Logs" or in a tournament.',
+                'EN': {-1: 'EN',
+                       0: 'LePALoCT isn\'t in the good folder.\nIt would be in "Logs" or in a tournament.',
                        10: 'Choose one or several tournaments (separated with "-"):\n',
                        11: 'You need one or several numbers (separated with "-", exemple: "42-666-512") between ',
                        12: '\n[numbers]: ',
@@ -129,8 +131,8 @@ class Plane:
                  nbr_clean_kill_r_given, nbr_clean_kill_r_received,
                  alive, suicide, mia, b_fired, b_hit, death_order, dead_time, hp, nbr_heat_done, team
                  ):
-        self.area = area
-        self.cat = cat
+        self.area = area.upper()
+        self.cat = cat.upper()
         self.player = player
         self.craft_name = craft_name
         self.nbr_b_given = nbr_b_given
@@ -288,6 +290,7 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
         if event[:7] not in ('Débris', 'DÃ©bris') and event[-5:] not in (
                 'Avion', 'avion', 'Probe') and event in heat.planes:
             heat.planes[event].dead_time = heat.duration
+            heat.planes[event].alive += 1
     elif e_type == 'DEAD':
         m = re.match(r'(?P<death_order>\d+):(?P<s>\d+).(?P<ds>\d+):(?P<name>.*)$', event)
         heat.planes[m['name']].dead_time = int(m['s']) + int(m['ds']) * 0.1
@@ -428,6 +431,13 @@ def add_heat_to_tournament(heat: Heat, tournament: Tournament) -> Tournament:
     return tournament
 
 
+def alive_death_order_points(heat: Heat):
+    nbr_plane = len(heat.planes)
+    for plane in heat.planes.values():
+        if plane.death_order == 0:
+            plane.death_order = nbr_plane
+
+
 def heat_f(p: Path, dictionary: Dict[int, str], scoring: List[float]) -> Tuple[Heat, str]:
     debug = f'##Heat {p}\n'
     file = []
@@ -439,6 +449,7 @@ def heat_f(p: Path, dictionary: Dict[int, str], scoring: List[float]) -> Tuple[H
     for line in file[1:]:
         if line != "\n":
             heat = analyse_regular_line(line, heat)
+    alive_death_order_points(heat)
     table = create_table(heat, dictionary, scoring)
     csv_creator(p.parent, table, p.stem)
     return heat, debug
@@ -466,6 +477,21 @@ def round_f(p: Path, tournament: Tournament, dictionary: Dict[int, str], scoring
     return tournament, heats_list, debug
 
 
+def values_to_string(value: Union[int, str, float], dictionary: Dict[int, str]) -> str:
+    if type(value) == str:
+        return value
+    if type(value) == int:
+        return str(value)
+    value = str(value)
+    new_value = ''
+    for carac in value:
+        if carac == '.' and dictionary[-1] == 'FR':
+            new_value += ','
+        else:
+            new_value += carac
+    return new_value
+
+
 def create_table(tournament: Tournament, dictionary: Dict[int, str], scoring: List[float]) -> List[List[str]]:
     """10"""
     column_table = ['player', 'craft_name', 'cat', 'area', 'team',
@@ -487,9 +513,10 @@ def create_table(tournament: Tournament, dictionary: Dict[int, str], scoring: Li
         plane_values = plane.values_plane()
         for column_table_name in column_table:
             if column_to_nbr[column_table_name] < len(plane_values):
-                line.append(str(plane_values[column_to_nbr[column_table_name]]))
+                line.append(values_to_string(plane_values[column_to_nbr[column_table_name]], dictionary))
             else:
-                other_values: Dict['str', 'str'] = {'': '', 'accuracy': str(plane.accuracy()), 'score': str(plane.score_f(scoring))}
+                other_values: Dict['str', 'str'] = {'': '', 'accuracy': values_to_string(plane.accuracy(), dictionary),
+                                                    'score': values_to_string(plane.score_f(scoring), dictionary)}
                 line.append(other_values[column_table_name])
         table.append(line)
     return table
@@ -513,7 +540,7 @@ def table_diplay(table: List[List[str]]) -> Tuple[str, str]:
 def csv_creator(p, table: List[List[str]], name: str):
     file_name = p / Path(f'{name}.csv')
     with open(file_name, mode='w') as csv_table:
-        table_writer = csv.writer(csv_table, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL, dialect='unix')
+        table_writer = csv.writer(csv_table, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL, dialect='unix')
         for line in table:
             table_writer.writerow(line)
 
@@ -547,8 +574,8 @@ def tournament_f(p: Path, dictionary: Dict[int, str], scoring: List[float]):
     display, d = table_diplay(table)
     debug += d
     print(debug)
-    input(display)
     csv_creator(p, table, f'tournament {p.name}')
+    input(display)
     success_f(heats_list, tournament.planes, dictionary)
     input()
 
