@@ -21,35 +21,49 @@ translations = {'FR': {-1: 'FR',
                        107: 'Nb Attacks',
                        108: 'Nb Targets',
                        109: 'Nb Attacks',
-                       110: 'Fired',
-                       111: 'Touched',
+                       110: 'Nb Targets',
+                       111: 'Nb Attacks',
                        112: 'Fired',
                        113: 'Touched',
-                       114: 'Damages',
-                       115: 'Damages',
-                       116: 'Damages',
-                       117: 'Damages',
+                       114: 'Fired',
+                       115: 'Touched',
+                       116: 'Fired',
+                       117: 'Touched',
                        118: 'Damages',
                        119: 'Damages',
-                       120: 'CleanKills',
-                       121: 'CleanKills',
-                       122: 'CleanKills',
-                       123: 'CleanKills',
-                       124: 'CleanKills',
-                       125: 'CleanKills',
-                       126: 'Nb Alive',
-                       127: 'Suicide',
-                       128: 'MIA',
-                       129: 'Fired',
-                       130: 'Hits',
-                       131: 'Death Order',
-                       132: 'Time Alive',
-                       133: 'HP (%)',
-                       134: 'nbr heat',
-                       135: 'Team',
-                       136: '',
-                       137: 'Accuracy',
-                       138: 'Score',
+                       120: 'Damages',
+                       121: 'Damages',
+                       122: 'Damages',
+                       123: 'Damages',
+                       124: 'Damages',
+                       125: 'Damages',
+                       126: 'CleanKills',
+                       127: 'CleanKills',
+                       128: 'CleanKills',
+                       129: 'CleanKills',
+                       130: 'CleanKills',
+                       131: 'CleanKills',
+                       132: 'CleanKills',
+                       133: 'CleanKills',
+                       134: 'HeadShot',
+                       135: 'HeadShot',
+                       136: 'HeadShot',
+                       137: 'HeadShot',
+                       138: 'HeadShot',
+                       139: 'HeadShot',
+                       140: 'Nb Alive',
+                       141: 'Suicide',
+                       142: 'MIA',
+                       143: 'Fired',
+                       144: 'Hits',
+                       145: 'Death Order',
+                       146: 'Time Alive',
+                       147: 'HP (%)',
+                       148: 'nbr heat',
+                       149: 'Team',
+                       150: '',
+                       151: 'Accuracy',
+                       152: 'Score',
                        200: 'Longest Heat:',
                        201: 'Shortest Heat:',
                        202: 'Max kills',
@@ -117,6 +131,8 @@ column_names = ['area', 'cat', 'player', 'craft_name',
                 'nbr_clean_kill_mis_given', 'nbr_clean_kill_mis_received',
                 'nbr_clean_kill_ram_given', 'nbr_clean_kill_ram_received',
                 'nbr_clean_kill_roc_given', 'nbr_clean_kill_roc_received',
+                'headshot_bul_given', 'headshot_bul_received', 'headshot_mis_given', 'headshot_mis_received',
+                'headshot_roc_given', 'headshot_roc_received',
                 'alive', 'suicide', 'mia', 'bul_fired', 'bul_hit', 'death_order', 'dead_time', 'hp', 'nbr_heat_done',
                 'team']
 
@@ -137,6 +153,8 @@ class Plane:
                  nbr_clean_kill_mis_given, nbr_clean_kill_mis_received,
                  nbr_clean_kill_ram_given, nbr_clean_kill_ram_received,
                  nbr_clean_kill_roc_given, nbr_clean_kill_roc_received,
+                 headshot_bul_given, headshot_bul_received, headshot_mis_given, headshot_mis_received,
+                 headshot_roc_given, headshot_roc_received,
                  alive, suicide, mia, bul_fired, bul_hit, death_order, dead_time, hp, nbr_heat_done, team
                  ):
         self.area = area.upper()
@@ -173,6 +191,12 @@ class Plane:
         self.nbr_clean_kill_ram_received = nbr_clean_kill_ram_received
         self.nbr_clean_kill_roc_given = nbr_clean_kill_roc_given
         self.nbr_clean_kill_roc_received = nbr_clean_kill_roc_received
+        self.headshot_bul_given = headshot_bul_given
+        self.headshot_bul_received = headshot_bul_received
+        self.headshot_mis_given = headshot_mis_given
+        self.headshot_mis_received = headshot_mis_received
+        self.headshot_roc_given = headshot_roc_given
+        self.headshot_roc_received = headshot_roc_received
         self.alive = alive
         self.suicide = suicide
         self.mia = mia
@@ -200,16 +224,22 @@ class Plane:
         return self.nbr_clean_kill_bul_given + self.nbr_clean_kill_mis_given + self.nbr_clean_kill_ram_given
 
     def values_plane(self) -> List[Union[str, int, float]]:
-        return [self.area, self.cat, self.player, self.craft_name, self.nbr_bul_given, self.nbr_bul_received,
-                self.nbr_mis_given, self.nbr_mis_received, self.nbr_ram_given, self.nbr_ram_received,
+        return [self.area, self.cat, self.player, self.craft_name,
+                self.nbr_bul_given, self.nbr_bul_received, self.nbr_mis_given, self.nbr_mis_received,
+                self.nbr_ram_given, self.nbr_ram_received, self.nbr_roc_given, self.nbr_roc_received,
                 self.hit_bul_given, self.hit_bul_received, self.hit_mis_given, self.hit_mis_received,
+                self.hit_roc_given, self.hit_roc_received,
                 self.bul_damages_given, self.bul_damages_received, self.mis_damages_given, self.mis_damages_received,
+                self.roc_damages_given, self.roc_damages_received,
                 self.parts_destructed_ram_given, self.parts_destructed_ram_received,
                 self.nbr_clean_kill_bul_given, self.nbr_clean_kill_bul_received,
                 self.nbr_clean_kill_mis_given, self.nbr_clean_kill_mis_received,
                 self.nbr_clean_kill_ram_given, self.nbr_clean_kill_ram_received,
-                self.alive, self.suicide, self.mia, self.bul_fired, self.bul_hit, self.death_order,
-                self.dead_time, self.hp, self.nbr_heat_done, self.team]
+                self.nbr_clean_kill_roc_given, self.nbr_clean_kill_roc_received,
+                self.headshot_bul_given, self.headshot_bul_received, self.headshot_mis_given, self.headshot_mis_received,
+                self.headshot_roc_given, self.headshot_roc_received,
+                self.alive, self.suicide, self.mia, self.bul_fired, self.bul_hit, self.death_order, self.dead_time,
+                self.hp, self.nbr_heat_done, self.team]
 
     def accuracy(self):
         if self.bul_fired > 0:
@@ -271,7 +301,7 @@ def name_separator(name: str) -> Tuple[str, str, str, str, Union[str, None], str
 def create_plane(name: str, dead_time: float, nbr_heat: int) -> Tuple[Plane, str]:
     area, cat, player, craft_name, team, debug = name_separator(name)
     return Plane(area, cat, player, craft_name, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, dead_time, 0, nbr_heat, team), debug
+                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, dead_time, 0, nbr_heat, team), debug
 
 
 def analyse_several_crafts(event: str) -> Tuple[str, float, Tuple[str, float], List[Tuple[str, float]]]:
@@ -313,7 +343,8 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
         heat.planes[m['name']].death_order = int(m['death_order']) + 1
         heat.planes[m['name']].suicide = 1
     elif e_type == 'MIA':
-        input('MIA')  # toremove
+        m = re.match('(?P<name>.+)$', event)
+        heat.planes[m['name']].mia += 1
     elif e_type == 'ACCURACY':
         m = re.match(r'(?P<name>[^:]+):(?P<hit>\d+)/(?P<fired>\d+)', event)
         heat.planes[m['name']].define_accuracy(int(m['hit']), int(m['fired']))
@@ -350,7 +381,7 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
         heat.planes[m['victim']].nbr_clean_kill_bul_received += 1
         heat.planes[m['victim']].suicide = 0
         heat.planes[m['killer']].nbr_clean_kill_bul_given += 1
-    elif e_type == 'CLEANMISSILEKILL':
+    elif e_type == 'CLEANKILLMISSILES':
         m = re.match(r'(?P<victim>[^:]+):(?P<killer>.+)', event)
         heat.planes[m['victim']].nbr_clean_kill_mis_received += 1
         heat.planes[m['victim']].suicide = 0
@@ -367,7 +398,11 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
         heat.planes[m['killer']].nbr_clean_kill_roc_given += 1
     elif e_type == 'HEADSHOTGUNS':
         pass
+    elif e_type == 'HEADSHOTMISSILES':
+        pass
     elif e_type == 'HEADSHOTROCKETS':
+        pass
+    elif e_type == 'KILLSTEALMISSILES':
         pass
     elif e_type == 'WHODAMAGEDWHOWITHGUNS':
         victim, damages_received, killer, accomplices = analyse_several_crafts(event)
@@ -385,6 +420,8 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
         for name, damages in [killer] + accomplices:
             heat.planes[name].roc_damages_given += damages
     elif e_type == 'WHODAMAGEDWHOWITHBATTLEDAMAGE':
+        pass
+    elif e_type == 'WHOPARTSHITWHOWITHMISSILES':
         pass
     elif e_type == 'WHOPARTSHITWHOWITHROCKETS':
         pass
@@ -446,6 +483,8 @@ def create_complet_plane(values: Tuple):
      nbr_clean_kill_mis_given, nbr_clean_kill_mis_received,
      nbr_clean_kill_ram_given, nbr_clean_kill_ram_received,
      nbr_clean_kill_roc_given, nbr_clean_kill_roc_received,
+     headshot_bul_given, headshot_bul_received, headshot_mis_given, headshot_mis_received,
+     headshot_roc_given, headshot_roc_received,
      alive, suicide, mia, bul_fired, bul_hit, death_order, dead_time, hp, nbr_heat_done, team) = values
 
     return Plane(area, cat, player, craft_name,
@@ -459,6 +498,8 @@ def create_complet_plane(values: Tuple):
                  nbr_clean_kill_mis_given, nbr_clean_kill_mis_received,
                  nbr_clean_kill_ram_given, nbr_clean_kill_ram_received,
                  nbr_clean_kill_roc_given, nbr_clean_kill_roc_received,
+                 headshot_bul_given, headshot_bul_received, headshot_mis_given, headshot_mis_received,
+                 headshot_roc_given, headshot_roc_received,
                  alive, suicide, mia, bul_fired, bul_hit, death_order, dead_time, hp, nbr_heat_done, team)
 
 
@@ -556,18 +597,24 @@ def create_table(tournament: Tournament, dictionary: Dict[int, str], scoring: Li
     table: List[List[str]] = []
     first_line: List[str] = []
     for column_table_name in column_table:
-        first_line.append(dictionary[100 + column_to_nbr[column_table_name]])
+        if column_table_name in column_to_nbr and 100 + column_to_nbr[column_table_name] in dictionary:
+            first_line.append(dictionary[100 + column_to_nbr[column_table_name]])
+        else:
+            first_line.append('#' + column_table_name)
     table.append(first_line)
     for plane in tournament.planes.values():
         line = []
         plane_values = plane.values_plane()
         for column_table_name in column_table:
-            if column_to_nbr[column_table_name] < len(plane_values):
+            if column_table_name in column_to_nbr and column_to_nbr[column_table_name] < len(plane_values):
                 line.append(values_to_string(plane_values[column_to_nbr[column_table_name]], dictionary))
             else:
                 other_values: Dict['str', 'str'] = {'': '', 'accuracy': values_to_string(plane.accuracy(), dictionary),
                                                     'score': values_to_string(plane.score_f(scoring), dictionary)}
-                line.append(other_values[column_table_name])
+                if column_table_name in other_values:
+                    line.append(other_values[column_table_name])
+                else:
+                    line.append('#' + column_table_name)
         table.append(line)
     return table
 
@@ -676,7 +723,7 @@ def creat_multi_tournament(p: Path, list_tournaments: List[Path]) -> Path:
     for t in list_tournaments:
         m = re.match(r'Tournament (?P<nbrs>\d+)', t.name)
         total_name += m['nbrs'] + ' '
-    total_name = total_name.strip()
+    total_name = total_name.strip()[:30]
     fic_here = []
     for n in p.iterdir():
         fic_here.append(n)
