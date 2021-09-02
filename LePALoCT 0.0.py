@@ -811,10 +811,11 @@ def load_config_file(p: Path) -> List[float]:
             for value in config_file_line.split(' '):
                 score_line.append(float(value))
             score_lines.append(score_line)
-    real_score = []
+    real_score: List[float] = []
     for i, multiplicater in enumerate(score_lines[0]):
         for value in score_lines[i + 1]:
-            real_score.append(value * multiplicater)
+            real_score.append(round(value * multiplicater, 6))
+    print(f'#scoring {real_score}')
     return real_score
 
 
@@ -835,7 +836,9 @@ def main():
             scoring: List[float] = load_config_file(f)
             break
     else:
-        scoring: List[float] = []
+        scoring: List[float] = [0.0005, 0.125, 0.25, 0.0, -0.25, 0.0, 0.2, 0.0004, 0.0, 0.0, 0.0, 4.0, -0.02, -4e-05,
+                                -0.4, 0.1, 0.0002, 0.0, 0.0, 0.0, 2.0, -0.02, -4e-05, -0.4, 0.1, 0.0002, 0.0, 0.0, 0.0,
+                                2.0, -0.02, -4e-05, -0.4, 0.1, 0.0002, 0.0, 0.0, 0.0, 2.0, -0.02, -4e-05, -0.4]
     if p.name == 'Logs':
         p = search_tournament(p, dictionary)
     if is_a_tournament(p.name):
