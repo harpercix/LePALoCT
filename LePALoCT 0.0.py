@@ -35,41 +35,49 @@ translations = {'FR': {-1: 'FR',
                        121: 'Damages',
                        122: 'Damages',
                        123: 'Damages',
-                       124: 'PartsDestructed',
-                       125: 'PartsDestructed',
+                       124: 'Damages',
+                       125: 'Damages',
                        126: 'PartsDestructed',
                        127: 'PartsDestructed',
                        128: 'PartsDestructed',
                        129: 'PartsDestructed',
                        130: 'PartsDestructed',
                        131: 'PartsDestructed',
-                       132: 'CleanKills',
-                       133: 'CleanKills',
+                       132: 'PartsDestructed',
+                       133: 'PartsDestructed',
                        134: 'CleanKills',
                        135: 'CleanKills',
                        136: 'CleanKills',
                        137: 'CleanKills',
                        138: 'CleanKills',
                        139: 'CleanKills',
-                       140: 'HeadShot',
-                       141: 'HeadShoted',
+                       140: 'CleanKills',
+                       141: 'CleanKills',
                        142: 'HeadShot',
                        143: 'HeadShoted',
                        144: 'HeadShot',
                        145: 'HeadShoted',
-                       146: 'Nb Alive',
-                       147: 'Suicide',
-                       148: 'MIA',
-                       149: 'Fired',
-                       150: 'Hits',
-                       151: 'Death Order',
-                       152: 'Time Alive',
-                       153: 'HP (%)',
-                       154: 'nbr heat',
-                       155: 'Team',
-                       156: '',
-                       157: 'Accuracy',
-                       158: 'Score',
+                       146: 'HeadShot',
+                       147: 'HeadShoted',
+                       148: 'KillSteal',
+                       149: 'KillSteal',
+                       150: 'KillSteal',
+                       151: 'KillSteal',
+                       152: 'KillSteal',
+                       153: 'KillSteal',
+                       154: 'Nb Alive',
+                       155: 'Suicide',
+                       156: 'MIA',
+                       157: 'Fired',
+                       159: 'Hits',
+                       160: 'Death Order',
+                       161: 'Time Alive',
+                       162: 'HP (%)',
+                       163: 'nbr heat',
+                       164: 'Team',
+                       165: '',
+                       166: 'Accuracy',
+                       167: 'Score',
                        200: 'Longest Heat:',
                        201: 'Shortest Heat:',
                        202: 'Max kills',
@@ -131,7 +139,7 @@ column_names = ['area', 'cat', 'player', 'craft_name',
                 'hit_bul_given', 'hit_bul_received', 'hit_mis_given', 'hit_mis_received', 'hit_roc_given',
                 'hit_roc_received',
                 'bul_damages_given', 'bul_damages_received', 'mis_damages_given', 'mis_damages_received',
-                'roc_damages_given', 'roc_damages_received',
+                'roc_damages_given', 'roc_damages_received', 'other_damages_given', 'other_damages_received',
                 'parts_destructed_bul_given', 'parts_destructed_bul_received',
                 'parts_destructed_mis_given', 'parts_destructed_mis_received',
                 'parts_destructed_ram_given', 'parts_destructed_ram_received',
@@ -140,6 +148,9 @@ column_names = ['area', 'cat', 'player', 'craft_name',
                 'nbr_clean_kill_mis_given', 'nbr_clean_kill_mis_received',
                 'nbr_clean_kill_ram_given', 'nbr_clean_kill_ram_received',
                 'nbr_clean_kill_roc_given', 'nbr_clean_kill_roc_received',
+                'kill_steal_bul_given', 'kill_steal_bul_received',
+                'kill_steal_mis_given', 'kill_steal_mis_received',
+                'kill_steal_roc_given', 'kill_steal_roc_received',
                 'headshot_bul_given', 'headshot_bul_received', 'headshot_mis_given', 'headshot_mis_received',
                 'headshot_roc_given', 'headshot_roc_received',
                 'alive', 'suicide', 'mia', 'bul_fired', 'bul_hit', 'death_order', 'dead_time', 'hp', 'nbr_heat_done',
@@ -156,7 +167,7 @@ class Plane:
                  nbr_ram_given, nbr_ram_received, nbr_roc_given, nbr_roc_received,
                  hit_bul_given, hit_bul_received, hit_mis_given, hit_mis_received, hit_roc_given, hit_roc_received,
                  bul_damages_given, bul_damages_received, mis_damages_given, mis_damages_received,
-                 roc_damages_given, roc_damages_received,
+                 roc_damages_given, roc_damages_received, other_damages_given, other_damages_received,
                  parts_destructed_bul_given, parts_destructed_bul_received,
                  parts_destructed_mis_given, parts_destructed_mis_received,
                  parts_destructed_ram_given, parts_destructed_ram_received,
@@ -165,14 +176,17 @@ class Plane:
                  nbr_clean_kill_mis_given, nbr_clean_kill_mis_received,
                  nbr_clean_kill_ram_given, nbr_clean_kill_ram_received,
                  nbr_clean_kill_roc_given, nbr_clean_kill_roc_received,
+                 kill_steal_bul_given, kill_steal_bul_received,
+                 kill_steal_mis_given, kill_steal_mis_received,
+                 kill_steal_roc_given, kill_steal_roc_received,
                  headshot_bul_given, headshot_bul_received, headshot_mis_given, headshot_mis_received,
                  headshot_roc_given, headshot_roc_received,
                  alive, suicide, mia, bul_fired, bul_hit, death_order, dead_time, hp, nbr_heat_done, team
                  ):
-        self.area = area.upper()
-        self.cat = cat.upper()
-        self.player = player
-        self.craft_name = craft_name
+        self.area = area.upper().strip()
+        self.cat = cat.upper().strip()
+        self.player = player.strip()
+        self.craft_name = craft_name.strip()
         self.nbr_bul_given = nbr_bul_given
         self.nbr_bul_received = nbr_bul_received
         self.nbr_mis_given = nbr_mis_given
@@ -193,6 +207,8 @@ class Plane:
         self.mis_damages_received = mis_damages_received
         self.roc_damages_given = roc_damages_given
         self.roc_damages_received = roc_damages_received
+        self.other_damages_given = other_damages_given
+        self.other_damages_received = other_damages_received
         self.parts_destructed_bul_given = parts_destructed_bul_given
         self.parts_destructed_bul_received = parts_destructed_bul_received
         self.parts_destructed_mis_given = parts_destructed_mis_given
@@ -215,6 +231,12 @@ class Plane:
         self.headshot_mis_received = headshot_mis_received
         self.headshot_roc_given = headshot_roc_given
         self.headshot_roc_received = headshot_roc_received
+        self.kill_steal_bul_given = kill_steal_bul_given
+        self.kill_steal_bul_received = kill_steal_bul_received
+        self.kill_steal_mis_given = kill_steal_mis_given
+        self.kill_steal_mis_received = kill_steal_mis_received
+        self.kill_steal_roc_given = kill_steal_roc_given
+        self.kill_steal_roc_received = kill_steal_roc_received
         self.alive = alive
         self.suicide = suicide
         self.mia = mia
@@ -248,7 +270,7 @@ class Plane:
                 self.hit_bul_given, self.hit_bul_received, self.hit_mis_given, self.hit_mis_received,
                 self.hit_roc_given, self.hit_roc_received,
                 self.bul_damages_given, self.bul_damages_received, self.mis_damages_given, self.mis_damages_received,
-                self.roc_damages_given, self.roc_damages_received,
+                self.roc_damages_given, self.roc_damages_received, self.other_damages_given, self.other_damages_received,
                 self.parts_destructed_bul_given, self.parts_destructed_bul_received,
                 self.parts_destructed_mis_given, self.parts_destructed_mis_received,
                 self.parts_destructed_ram_given, self.parts_destructed_ram_received,
@@ -260,6 +282,9 @@ class Plane:
                 self.headshot_bul_given, self.headshot_bul_received, self.headshot_mis_given,
                 self.headshot_mis_received,
                 self.headshot_roc_given, self.headshot_roc_received,
+                self.kill_steal_bul_given, self.kill_steal_bul_received,
+                self.kill_steal_mis_given, self.kill_steal_mis_received,
+                self.kill_steal_roc_given, self.kill_steal_roc_received,
                 self.alive, self.suicide, self.mia, self.bul_fired, self.bul_hit, self.death_order, self.dead_time,
                 self.hp, self.nbr_heat_done, self.team]
 
@@ -321,10 +346,20 @@ def name_separator(name: str) -> Tuple[str, str, str, str, Union[str, None], str
 
 
 def create_plane(name: str, dead_time: float, nbr_heat: int) -> Tuple[Plane, str]:
-    area, cat, player, craft_name, team, debug = name_separator(name)
+    area, cat, player, craft_name, team, debug = name_separator(correcting_name(name))
     return Plane(area, cat, player, craft_name, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                  dead_time, 0, nbr_heat, team), debug
+
+
+def correcting_name(name: str) -> str:
+    new_name = ''
+    for carac in name.strip():
+        if carac in (',', '[', ']', '\t', ':'):
+            new_name += '_'
+        else:
+            new_name += carac
+    return new_name
 
 
 def analyse_several_crafts(event: str) -> Tuple[str, float, Tuple[str, float], List[Tuple[str, float]]]:
@@ -425,15 +460,30 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
         heat.planes[m['victim']].suicide = 0
         heat.planes[m['killer']].headshot_bul_given += 1
     elif e_type == 'HEADSHOTMISSILES':
+        m = re.match(r'(?P<victim>[^:]+):(?P<killer>.+)', event)
         heat.planes[m['victim']].headshot_mis_received += 1
         heat.planes[m['victim']].suicide = 0
         heat.planes[m['killer']].headshot_mis_given += 1
     elif e_type == 'HEADSHOTROCKETS':
+        m = re.match(r'(?P<victim>[^:]+):(?P<killer>.+)', event)
         heat.planes[m['victim']].headshot_roc_received += 1
         heat.planes[m['victim']].suicide = 0
         heat.planes[m['killer']].headshot_roc_given += 1
+    elif e_type == 'KILLSTEALBULLETS':
+        m = re.match(r'(?P<victim>[^:]+):(?P<killer>.+)', event)
+        heat.planes[m['victim']].kill_steal_bul_received += 1
+        heat.planes[m['victim']].suicide = 0
+        heat.planes[m['killer']].kill_steal_bul_given += 1
     elif e_type == 'KILLSTEALMISSILES':
-        pass
+        m = re.match(r'(?P<victim>[^:]+):(?P<killer>.+)', event)
+        heat.planes[m['victim']].kill_steal_mis_received += 1
+        heat.planes[m['victim']].suicide = 0
+        heat.planes[m['killer']].kill_steal_mis_given += 1
+    elif e_type == 'KILLSTEALROCKETS':
+        m = re.match(r'(?P<victim>[^:]+):(?P<killer>.+)', event)
+        heat.planes[m['victim']].kill_steal_roc_received += 1
+        heat.planes[m['victim']].suicide = 0
+        heat.planes[m['killer']].kill_steal_roc_given += 1
     elif e_type == 'WHODAMAGEDWHOWITHGUNS':
         victim, damages_received, killer, accomplices = analyse_several_crafts(event)
         heat.planes[victim].bul_damages_received += damages_received
@@ -450,11 +500,25 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
         for name, damages in [killer] + accomplices:
             heat.planes[name].roc_damages_given += damages
     elif e_type == 'WHODAMAGEDWHOWITHBATTLEDAMAGE':
-        pass
+        victim, damages_received, killer, accomplices = analyse_several_crafts(event)
+        heat.planes[victim].other_damages_received += damages_received
+        for name, damages in [killer] + accomplices:
+            heat.planes[name].other_damages_received += damages
+    elif e_type == 'WHOPARTSHITWHOWITHBULLETS':
+        victim, damages_received, killer, accomplices = analyse_several_crafts(event)
+        heat.planes[victim].parts_destructed_bul_received += damages_received
+        for name, damages in [killer] + accomplices:
+            heat.planes[name].parts_destructed_bul_given += damages
     elif e_type == 'WHOPARTSHITWHOWITHMISSILES':
-        pass
+        victim, damages_received, killer, accomplices = analyse_several_crafts(event)
+        heat.planes[victim].parts_destructed_mis_received += damages_received
+        for name, damages in [killer] + accomplices:
+            heat.planes[name].parts_destructed_mis_given += damages
     elif e_type == 'WHOPARTSHITWHOWITHROCKETS':
-        pass
+        victim, damages_received, killer, accomplices = analyse_several_crafts(event)
+        heat.planes[victim].parts_destructed_roc_received += damages_received
+        for name, damages in [killer] + accomplices:
+            heat.planes[name].parts_destructed_roc_given += damages
     elif e_type == 'GMKILL':
         pass
     elif e_type == 'HPLEFT':
@@ -507,7 +571,7 @@ def create_complet_plane(values: Tuple):
      nbr_ram_given, nbr_ram_received, nbr_roc_given, nbr_roc_received,
      hit_bul_given, hit_bul_received, hit_mis_given, hit_mis_received, hit_roc_given, hit_roc_received,
      bul_damages_given, bul_damages_received, mis_damages_given, mis_damages_received,
-     roc_damages_given, roc_damages_received,
+     roc_damages_given, roc_damages_received, other_damages_given, other_damages_received,
      parts_destructed_bul_given, parts_destructed_bul_received,
      parts_destructed_mis_given, parts_destructed_mis_received,
      parts_destructed_ram_given, parts_destructed_ram_received,
@@ -516,6 +580,9 @@ def create_complet_plane(values: Tuple):
      nbr_clean_kill_mis_given, nbr_clean_kill_mis_received,
      nbr_clean_kill_ram_given, nbr_clean_kill_ram_received,
      nbr_clean_kill_roc_given, nbr_clean_kill_roc_received,
+     kill_steal_bul_given, kill_steal_bul_received,
+     kill_steal_mis_given, kill_steal_mis_received,
+     kill_steal_roc_given, kill_steal_roc_received,
      headshot_bul_given, headshot_bul_received, headshot_mis_given, headshot_mis_received,
      headshot_roc_given, headshot_roc_received,
      alive, suicide, mia, bul_fired, bul_hit, death_order, dead_time, hp, nbr_heat_done, team) = values
@@ -525,7 +592,7 @@ def create_complet_plane(values: Tuple):
                  nbr_ram_given, nbr_ram_received, nbr_roc_given, nbr_roc_received,
                  hit_bul_given, hit_bul_received, hit_mis_given, hit_mis_received, hit_roc_given, hit_roc_received,
                  bul_damages_given, bul_damages_received, mis_damages_given, mis_damages_received,
-                 roc_damages_given, roc_damages_received,
+                 roc_damages_given, roc_damages_received, other_damages_given, other_damages_received,
                  parts_destructed_bul_given, parts_destructed_bul_received,
                  parts_destructed_mis_given, parts_destructed_mis_received,
                  parts_destructed_ram_given, parts_destructed_ram_received,
@@ -534,6 +601,9 @@ def create_complet_plane(values: Tuple):
                  nbr_clean_kill_mis_given, nbr_clean_kill_mis_received,
                  nbr_clean_kill_ram_given, nbr_clean_kill_ram_received,
                  nbr_clean_kill_roc_given, nbr_clean_kill_roc_received,
+                 kill_steal_bul_given, kill_steal_bul_received,
+                 kill_steal_mis_given, kill_steal_mis_received,
+                 kill_steal_roc_given, kill_steal_roc_received,
                  headshot_bul_given, headshot_bul_received, headshot_mis_given, headshot_mis_received,
                  headshot_roc_given, headshot_roc_received,
                  alive, suicide, mia, bul_fired, bul_hit, death_order, dead_time, hp, nbr_heat_done, team)

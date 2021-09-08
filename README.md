@@ -7,3 +7,8 @@ It makes 3 types of csv table:
 1. heat 
 2. round 
 3. tournament
+
+## Special thanks
+* All de BDA developpers for explanations
+* Dadkitess and Splagada for Logs and information
+* Organisators of French tournaments: Dadkitess, VieuxMr, Cookie, AlexandreB and Splagada
