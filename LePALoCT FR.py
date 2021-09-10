@@ -305,7 +305,7 @@ def name_separator(name: str) -> Tuple[str, str, str, str, Union[str, None], str
             debug = f'#ERROR incorect name : "{name}"\n'
             return 'NA', 'NA', 'NA', name, None, debug
         team = m['team']
-    n = re.match('(?P<craft_name>[^_]+)_(?P<nbr>.+)', m['craft_name'])
+    n = re.match('(?P<craft_name>[^_]+)_(?P<nbr>\d+)', m['craft_name'])
     if n is None:
         return m['area'], m['cat'], m['player'], m['craft_name'], team, ''
     return m['area'], m['cat'], m['player'], n['craft_name'], team, ''
