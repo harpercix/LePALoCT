@@ -4,7 +4,6 @@ from pathlib import Path
 import re
 from typing import List, Dict, Tuple, Union
 
-# todo: modifier les noms des colones
 
 translations = {'FR': {-1: 'FR',
                        0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dans "Logs" ou dans un tournoi.',
