@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 from typing import List, Dict, Tuple, Union
 
-# todo: modifier les noms des colones
+# todo: modifier les noms des colones, modifier le scoring, ajouter un parser de craft
 
 translations = {'FR': {-1: 'FR',
                        0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dans "Logs" ou dans un tournoi.',
@@ -53,33 +53,35 @@ translations = {'FR': {-1: 'FR',
                        139: 'CleanKills',
                        140: 'CleanKills',
                        141: 'CleanKills',
-                       142: 'HeadShot',
-                       143: 'HeadShoted',
-                       144: 'HeadShot',
-                       145: 'HeadShoted',
-                       146: 'HeadShot',
-                       147: 'HeadShoted',
-                       148: 'HeadShot',
-                       149: 'HeadShoted',
-                       150: 'KillSteal',
-                       151: 'KillSteal',
-                       152: 'KillSteal',
-                       153: 'KillSteal',
-                       154: 'KillSteal',
-                       155: 'KillSteal',
-                       156: 'Nb Alive',
-                       157: 'Suicide',
-                       158: 'MIA',
-                       159: 'Fired',
-                       160: 'Hits',
-                       161: 'Death Order',
-                       162: 'Time Alive',
-                       163: 'HP (%)',
-                       164: 'nbr heat',
-                       165: 'Team',
-                       166: '',
-                       167: 'Accuracy',
-                       168: 'Score',
+                       142: 'KillSteal',
+                       143: 'KillSteal',
+                       144: 'KillSteal',
+                       145: 'KillSteal',
+                       146: 'KillSteal',
+                       147: 'KillSteal',
+                       148: 'KillSteal',
+                       149: 'KillSteal',
+                       150: 'HeadShot',
+                       151: 'HeadShoted',
+                       152: 'HeadShot',
+                       153: 'HeadShoted',
+                       154: 'HeadShot',
+                       155: 'HeadShoted',
+                       156: 'HeadShot',
+                       157: 'HeadShoted',
+                       158: 'Nb Alive',
+                       159: 'Suicide',
+                       160: 'MIA',
+                       161: 'Fired',
+                       162: 'Hits',
+                       163: 'Death Order',
+                       164: 'Time Alive',
+                       165: 'HP (%)',
+                       166: 'nbr heat',
+                       167: 'Team',
+                       168: '',
+                       169: 'Accuracy',
+                       170: 'Score',
                        200: 'Longest Heat:',
                        201: 'Shortest Heat:',
                        202: 'Max kills',
@@ -116,7 +118,7 @@ column_names = ['area', 'cat', 'player', 'craft_name',
                 'kill_steal_ram_given', 'kill_steal_ram_received',
                 'kill_steal_roc_given', 'kill_steal_roc_received',
                 'headshot_bul_given', 'headshot_bul_received', 'headshot_mis_given', 'headshot_mis_received',
-                'headshot_roc_given', 'headshot_roc_received',
+                'headshot_ram_given', 'headshot_ram_received', 'headshot_roc_given', 'headshot_roc_received',
                 'alive', 'suicide', 'mia', 'bul_fired', 'bul_hit', 'death_order', 'dead_time', 'hp', 'nbr_heat_done',
                 'team']
 
@@ -145,7 +147,7 @@ class Plane:
                  kill_steal_ram_given, kill_steal_ram_received,
                  kill_steal_roc_given, kill_steal_roc_received,
                  headshot_bul_given, headshot_bul_received, headshot_mis_given, headshot_mis_received,
-                 headshot_roc_given, headshot_roc_received,
+                 headshot_ram_given, headshot_ram_received, headshot_roc_given, headshot_roc_received,
                  alive, suicide, mia, bul_fired, bul_hit, death_order, dead_time, hp, nbr_heat_done, team
                  ):
         self.area = area.upper().strip()
@@ -194,6 +196,8 @@ class Plane:
         self.headshot_bul_received = headshot_bul_received
         self.headshot_mis_given = headshot_mis_given
         self.headshot_mis_received = headshot_mis_received
+        self.headshot_ram_given = headshot_ram_given
+        self.headshot_ram_received = headshot_ram_received
         self.headshot_roc_given = headshot_roc_given
         self.headshot_roc_received = headshot_roc_received
         self.kill_steal_bul_given = kill_steal_bul_given
@@ -248,6 +252,7 @@ class Plane:
                 self.nbr_clean_kill_roc_given, self.nbr_clean_kill_roc_received,
                 self.headshot_bul_given, self.headshot_bul_received, self.headshot_mis_given,
                 self.headshot_mis_received,
+                self.headshot_ram_given, self.headshot_ram_received,
                 self.headshot_roc_given, self.headshot_roc_received,
                 self.kill_steal_bul_given, self.kill_steal_bul_received,
                 self.kill_steal_mis_given, self.kill_steal_mis_received,
@@ -317,7 +322,7 @@ def create_plane(name: str, dead_time: float, nbr_heat: int) -> Tuple[Plane, str
     area, cat, player, craft_name, team, debug = name_separator(correcting_name(name))
     return Plane(area, cat, player, craft_name, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                 dead_time, 0, nbr_heat, team), debug
+                 0, 0, dead_time, 0, nbr_heat, team), debug
 
 
 def correcting_name(name: str) -> str:
@@ -559,7 +564,7 @@ def create_complet_plane(values: Tuple):
      kill_steal_ram_given, kill_steal_ram_received,
      kill_steal_roc_given, kill_steal_roc_received,
      headshot_bul_given, headshot_bul_received, headshot_mis_given, headshot_mis_received,
-     headshot_roc_given, headshot_roc_received,
+     headshot_ram_given, headshot_ram_received, headshot_roc_given, headshot_roc_received,
      alive, suicide, mia, bul_fired, bul_hit, death_order, dead_time, hp, nbr_heat_done, team) = values
 
     return Plane(area, cat, player, craft_name,
@@ -581,7 +586,7 @@ def create_complet_plane(values: Tuple):
                  kill_steal_ram_given, kill_steal_ram_received,
                  kill_steal_roc_given, kill_steal_roc_received,
                  headshot_bul_given, headshot_bul_received, headshot_mis_given, headshot_mis_received,
-                 headshot_roc_given, headshot_roc_received,
+                 headshot_ram_given, headshot_ram_received, headshot_roc_given, headshot_roc_received,
                  alive, suicide, mia, bul_fired, bul_hit, death_order, dead_time, hp, nbr_heat_done, team)
 
 
@@ -668,13 +673,22 @@ def create_table(tournament: Tournament, dictionary: Dict[int, str], scoring: Li
     """10"""
     column_table = ['player', 'craft_name', 'cat', 'area', 'team',
                     'dead_time', 'alive', 'death_order', 'hp', 'suicide', 'mia', '',
-                    'nbr_bul_given', 'bul_damages_given', 'bul_fired', 'bul_hit', 'accuracy',
-                    'nbr_clean_kill_bul_given', '',
-                    'nbr_bul_received', 'bul_damages_received', 'nbr_clean_kill_bul_received', '',
-                    'nbr_mis_given', 'mis_damages_given', 'hit_mis_given', '', '', 'nbr_clean_kill_mis_given', '',
-                    'nbr_mis_received', 'mis_damages_received', 'nbr_clean_kill_mis_received', '',
-                    'nbr_ram_given', 'parts_destructed_ram_given', '', '', '', 'nbr_clean_kill_ram_given', '',
-                    'nbr_ram_received', 'parts_destructed_ram_received', 'nbr_clean_kill_ram_received', '',
+                    'nbr_bul_given', 'bul_damages_given', 'parts_destructed_bul_given', 'bul_fired', 'bul_hit',
+                    'accuracy', 'kill_steal_bul_given', 'headshot_bul_given', 'nbr_clean_kill_bul_given', '',
+                    'nbr_bul_received', 'bul_damages_received', 'parts_destructed_bul_received',
+                    'kill_steal_bul_received', 'headshot_bul_received', 'nbr_clean_kill_bul_received', '',
+                    'nbr_mis_given', 'mis_damages_given', 'parts_destructed_mis_given', 'hit_mis_given',
+                    'kill_steal_mis_given', 'headshot_mis_given', 'nbr_clean_kill_mis_given', '',
+                    'nbr_mis_received', 'mis_damages_received', 'parts_destructed_mis_received',
+                    'kill_steal_mis_received', 'headshot_mis_received', 'nbr_clean_kill_mis_received', '',
+                    'nbr_ram_given', 'parts_destructed_ram_given', 'kill_steal_roc_given', 'headshot_ram_given',
+                    'nbr_clean_kill_ram_given', '',
+                    'nbr_ram_received', 'parts_destructed_ram_received', 'kill_steal_ram_received', 
+                    'headshot_ram_received', 'nbr_clean_kill_ram_received', '',
+                    'nbr_roc_given', 'roc_damages_given', 'parts_destructed_roc_given', 'hit_roc_given',
+                    'kill_steal_roc_given', 'headshot_roc_given', 'nbr_clean_kill_roc_given', '',
+                    'nbr_roc_received', 'roc_damages_received', 'parts_destructed_roc_received',
+                    'kill_steal_roc_received', 'headshot_roc_received', 'nbr_clean_kill_roc_received', '',
                     'score']
     table: List[List[str]] = []
     first_line: List[str] = []
