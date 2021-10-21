@@ -7,7 +7,7 @@ from typing import List, Dict, Tuple, Union
 # todo: modifier les noms des colones, modifier le scoring, ajouter un parser de craft
 
 translations = {'FR': {-1: 'FR',
-                       0: 'LePALoCT n\'est pas au bon fichier.\nIl doit etre dans "Logs" ou dans un tournoi.',
+                       0: 'LePALoCT n\'est pas au bon endroit.\nIl doit etre dans "Logs" ou dans un tournoi.',
                        10: 'Choisis un ou plusieurs tournois parmis ceux ci (separes par des "-") :\n',
                        11: 'Il faut un ou plusieurs nombres (separes par des "-", exemple : "42-666-512") entre ',
                        12: '\n[numeros] : ',
@@ -122,6 +122,27 @@ column_names = ['area', 'cat', 'player', 'craft_name',
                 'alive', 'suicide', 'mia', 'bul_fired', 'bul_hit', 'death_order', 'dead_time', 'hp', 'nbr_heat_done',
                 'team']
 
+column_table = ['player', 'craft_name', 'cat', 'area', 'team',
+                'dead_time', 'alive', 'death_order', 'hp', 'suicide', 'mia', '',
+                'nbr_bul_given', 'bul_damages_given', 'parts_destructed_bul_given', 'bul_fired', 'bul_hit',
+                'accuracy', 'kill_steal_bul_given', 'headshot_bul_given', 'nbr_clean_kill_bul_given', '',
+                'nbr_bul_received', 'bul_damages_received', 'parts_destructed_bul_received',
+                'kill_steal_bul_received', 'headshot_bul_received', 'nbr_clean_kill_bul_received', '',
+                'nbr_mis_given', 'mis_damages_given', 'parts_destructed_mis_given', 'hit_mis_given',
+                'kill_steal_mis_given', 'headshot_mis_given', 'nbr_clean_kill_mis_given', '',
+                'nbr_mis_received', 'mis_damages_received', 'parts_destructed_mis_received',
+                'kill_steal_mis_received', 'headshot_mis_received', 'nbr_clean_kill_mis_received', '',
+                'nbr_ram_given', 'parts_destructed_ram_given', 'kill_steal_roc_given', 'headshot_ram_given',
+                'nbr_clean_kill_ram_given', '',
+                'nbr_ram_received', 'parts_destructed_ram_received', 'kill_steal_ram_received',
+                'headshot_ram_received', 'nbr_clean_kill_ram_received', '',
+                'nbr_roc_given', 'roc_damages_given', 'parts_destructed_roc_given', 'hit_roc_given',
+                'kill_steal_roc_given', 'headshot_roc_given', 'nbr_clean_kill_roc_given', '',
+                'nbr_roc_received', 'roc_damages_received', 'parts_destructed_roc_received',
+                'kill_steal_roc_received', 'headshot_roc_received', 'nbr_clean_kill_roc_received', '',
+                'score']
+
+
 column_to_nbr: Dict[str, int] = {}
 for i, column in enumerate(column_names):
     column_to_nbr[column] = i
@@ -223,7 +244,7 @@ class Plane:
         self.bul_hit = hit
         self.bul_fired = fired
 
-    def display(self, dictionary: Dict[int, str], scoring: List[float]):
+    def display(self, dictionary: Dict[int, str], scoring: Dict[str, float]):
         return table_diplay(create_table(Tournament(0, 0, {self.name_creator(): self}), dictionary, scoring))
 
     def name_creator(self):
@@ -241,7 +262,8 @@ class Plane:
                 self.hit_bul_given, self.hit_bul_received, self.hit_mis_given, self.hit_mis_received,
                 self.hit_roc_given, self.hit_roc_received,
                 self.bul_damages_given, self.bul_damages_received, self.mis_damages_given, self.mis_damages_received,
-                self.roc_damages_given, self.roc_damages_received, self.other_damages_given, self.other_damages_received,
+                self.roc_damages_given, self.roc_damages_received, self.other_damages_given,
+                self.other_damages_received,
                 self.parts_destructed_bul_given, self.parts_destructed_bul_received,
                 self.parts_destructed_mis_given, self.parts_destructed_mis_received,
                 self.parts_destructed_ram_given, self.parts_destructed_ram_received,
@@ -266,13 +288,12 @@ class Plane:
             return self.bul_hit / self.bul_fired
         return 0
 
-    def score_f(self, scoring: List[float]):
+    def score_f(self, scoring: Dict[str, float]):
         score = 0
-        i = 0
-        for value in self.values_plane():
-            if i < len(scoring) and type(value) is int:
-                score += value * scoring[i]
-            i += 1
+        plane_values = self.values_plane()
+        for key, value in scoring.items():
+            if key in column_to_nbr and type(plane_values[column_to_nbr[key]]) in (int, float):
+                score += plane_values[column_to_nbr[key]]*value
         return score
 
 
@@ -376,6 +397,7 @@ def analyse_regular_line(line: str, heat: Heat) -> Heat:
     elif e_type == 'MIA':
         m = re.match('(?P<name>.+)$', event)
         heat.planes[m['name']].mia += 1
+        heat.planes[m['name']].suicide = 0
     elif e_type == 'ACCURACY':
         m = re.match(r'(?P<name>[^:]+):(?P<hit>\d+)/(?P<fired>\d+)', event)
         heat.planes[m['name']].define_accuracy(int(m['hit']), int(m['fired']))
@@ -614,7 +636,7 @@ def alive_death_order_points(heat: Heat):
             plane.death_order = nbr_plane
 
 
-def heat_f(p: Path, dictionary: Dict[int, str], scoring: List[float]) -> Tuple[Heat, str]:
+def heat_f(p: Path, dictionary: Dict[int, str], scoring: Dict[str, float]) -> Tuple[Heat, str]:
     debug = f'##Heat {p}\n'
     file = []
     with p.open() as file_read:
@@ -631,7 +653,7 @@ def heat_f(p: Path, dictionary: Dict[int, str], scoring: List[float]) -> Tuple[H
     return heat, debug
 
 
-def round_f(p: Path, tournament: Tournament, dictionary: Dict[int, str], scoring: List[float]) \
+def round_f(p: Path, tournament: Tournament, dictionary: Dict[int, str], scoring: Dict[str, float]) \
         -> Tuple[Tournament, List[Heat], str]:
     debug = f'##Round {p}\n'
     heats_list = []
@@ -669,27 +691,8 @@ def values_to_string(value: Union[int, str, float], dictionary: Dict[int, str]) 
     return new_value
 
 
-def create_table(tournament: Tournament, dictionary: Dict[int, str], scoring: List[float]) -> List[List[str]]:
+def create_table(tournament: Tournament, dictionary: Dict[int, str], scoring: Dict[str, float]) -> List[List[str]]:
     """10"""
-    column_table = ['player', 'craft_name', 'cat', 'area', 'team',
-                    'dead_time', 'alive', 'death_order', 'hp', 'suicide', 'mia', '',
-                    'nbr_bul_given', 'bul_damages_given', 'parts_destructed_bul_given', 'bul_fired', 'bul_hit',
-                    'accuracy', 'kill_steal_bul_given', 'headshot_bul_given', 'nbr_clean_kill_bul_given', '',
-                    'nbr_bul_received', 'bul_damages_received', 'parts_destructed_bul_received',
-                    'kill_steal_bul_received', 'headshot_bul_received', 'nbr_clean_kill_bul_received', '',
-                    'nbr_mis_given', 'mis_damages_given', 'parts_destructed_mis_given', 'hit_mis_given',
-                    'kill_steal_mis_given', 'headshot_mis_given', 'nbr_clean_kill_mis_given', '',
-                    'nbr_mis_received', 'mis_damages_received', 'parts_destructed_mis_received',
-                    'kill_steal_mis_received', 'headshot_mis_received', 'nbr_clean_kill_mis_received', '',
-                    'nbr_ram_given', 'parts_destructed_ram_given', 'kill_steal_roc_given', 'headshot_ram_given',
-                    'nbr_clean_kill_ram_given', '',
-                    'nbr_ram_received', 'parts_destructed_ram_received', 'kill_steal_ram_received', 
-                    'headshot_ram_received', 'nbr_clean_kill_ram_received', '',
-                    'nbr_roc_given', 'roc_damages_given', 'parts_destructed_roc_given', 'hit_roc_given',
-                    'kill_steal_roc_given', 'headshot_roc_given', 'nbr_clean_kill_roc_given', '',
-                    'nbr_roc_received', 'roc_damages_received', 'parts_destructed_roc_received',
-                    'kill_steal_roc_received', 'headshot_roc_received', 'nbr_clean_kill_roc_received', '',
-                    'score']
     table: List[List[str]] = []
     first_line: List[str] = []
     for column_table_name in column_table:
@@ -705,7 +708,7 @@ def create_table(tournament: Tournament, dictionary: Dict[int, str], scoring: Li
             if column_table_name in column_to_nbr and column_to_nbr[column_table_name] < len(plane_values):
                 line.append(values_to_string(plane_values[column_to_nbr[column_table_name]], dictionary))
             else:
-                other_values: Dict['str', 'str'] = {'': '', 'accuracy': values_to_string(plane.accuracy(), dictionary),
+                other_values: Dict[str, str] = {'': '', 'accuracy': values_to_string(plane.accuracy(), dictionary),
                                                     'score': values_to_string(plane.score_f(scoring), dictionary)}
                 if column_table_name in other_values:
                     line.append(other_values[column_table_name])
@@ -738,7 +741,7 @@ def csv_creator(p, table: List[List[str]], name: str):
             table_writer.writerow(line)
 
 
-def tournament_f(p: Path, dictionary: Dict[int, str], scoring: List[float]):
+def tournament_f(p: Path, dictionary: Dict[int, str], scoring: Dict[str, float]):
     """2"""
     heats_list = []
     debug = '##Tournament\n'
@@ -894,30 +897,17 @@ def search_tournament(p: Path, dictionary: Dict[int, str]) -> Path:
     return creat_multi_tournament(p, tournois_selectionnes)
 
 
-def load_config_file(p: Path) -> List[float]:
-    """file : 'a b c
-    d e
-    f g
-    h i j'
-    score = [a*d, a*e, b*f, b*g, c*h, c*i, c*j]"""
-    score_lines: List[List[float]] = []
-    with p.open() as config_file:
-        for config_file_line in config_file:
-            score_line: List[float] = []
-            for value in config_file_line.split(' '):
-                score_line.append(float(value))
-            score_lines.append(score_line)
-    real_score: List[float] = []
-    for i, multiplicater in enumerate(score_lines[0]):
-        for value in score_lines[i + 1]:
-            real_score.append(round(value * multiplicater, 6))
-    print(f'#scoring {real_score}')
-    return real_score
+def load_config_file() -> Dict[str, float]:
+    file_str = ""
+    with open('LePALoCT config.json') as config_file:
+        for line in config_file:
+            file_str += line.strip()
+    print(f'#real scoring: {loads(file_str)}')
+    return loads(file_str)
 
 
 def main():
     """0"""
-
     def is_a_tournament(name: str) -> bool:
         m = re.match(r'Tournament (?P<nbr>\d+)', name)
         if m is not None:
@@ -929,12 +919,33 @@ def main():
     dictionary: Dict[int, str] = translations['FR']
     for f in p.iterdir():
         if f.name[:15] == 'LePALoCT config':
-            scoring: List[float] = load_config_file(f)
+            scoring: Dict[str, float] = load_config_file()
             break
     else:
-        scoring: List[float] = [0.0005, 0.125, 0.25, 0.0, -0.25, 0.0, 0.2, 0.0004, 0.0, 0.0, 0.0, 4.0, -0.02, -4e-05,
-                                -0.4, 0.1, 0.0002, 0.0, 0.0, 0.0, 2.0, -0.02, -4e-05, -0.4, 0.1, 0.0002, 0.0, 0.0, 0.0,
-                                2.0, -0.02, -4e-05, -0.4, 0.1, 0.0002, 0.0, 0.0, 0.0, 2.0, -0.02, -4e-05, -0.4]
+        scoring: Dict[str, float] = {'accuracy': 0, 'alive': 0.125, 'area': 0.0, 'bul_damages': 0.0004,
+                                     'bul_damages_received': -4e-05, 'bul_fired': 0, 'bul_hit': 0, 'cat': 0.0,
+                                     'craft_name': 0.0, 'dead_time': 0.0005, 'death_order': 0.25,
+                                     'headshot_bul_given': 2, 'headshot_bul_received': -0.2, 'headshot_mis_given': 1,
+                                     'headshot_mis_received': -0.2, 'headshot_ram_given': 1,
+                                     'headshot_ram_received': -0.2, 'headshot_roc_given': 1,
+                                     'headshot_roc_received': -0.2, 'hit_mis_given': 0, 'hit_roc_given': 0, 'hp': 0.0,
+                                     'kill_steal_bul_given': 1.0, 'kill_steal_bul_received': -0.1,
+                                     'kill_steal_mis_given': 0.5, 'kill_steal_mis_received': -0.1,
+                                     'kill_steal_ram_received': -0.1, 'kill_steal_roc_given': 0.5,
+                                     'kill_steal_roc_received': -0.1, 'mia': 0.0, 'mis_damages_given': 0.0002,
+                                     'mis_damages_received': -4e-05, 'nbr_bul_given': 0.2, 'nbr_bul_received': -0.02,
+                                     'nbr_clean_kill_bul_given': 4, 'nbr_clean_kill_bul_received': -0.4,
+                                     'nbr_clean_kill_mis_given': 2, 'nbr_clean_kill_mis_received': -0.4,
+                                     'nbr_clean_kill_ram_given': 2, 'nbr_clean_kill_ram_received': -0.4,
+                                     'nbr_clean_kill_roc_given': 2, 'nbr_clean_kill_roc_received': -0.4,
+                                     'nbr_mis_given': 0.1, 'nbr_mis_received': -0.02, 'nbr_ram_given': 0.1,
+                                     'nbr_ram_received': -0.02, 'nbr_roc_given': 0.1, 'nbr_roc_received': -0.02,
+                                     'parts_destructed_bul_given': 0, 'parts_destructed_bul_received': -0.0,
+                                     'parts_destructed_mis_given': 0, 'parts_destructed_mis_received': -0.0,
+                                     'parts_destructed_ram_given': 0, 'parts_destructed_ram_received': -0.0,
+                                     'parts_destructed_roc_given': 0, 'parts_destructed_roc_received': -0.0,
+                                     'player': 0.0, 'roc_damages_given': 0.0002, 'roc_damages_received': -4e-05,
+                                     'suicide': -0.125, 'team': 0.0}
     if p.name == 'Logs':
         p = search_tournament(p, dictionary)
     if is_a_tournament(p.name):
