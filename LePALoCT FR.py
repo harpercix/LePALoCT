@@ -897,9 +897,9 @@ def search_tournament(p: Path, dictionary: Dict[int, str]) -> Path:
     return creat_multi_tournament(p, tournois_selectionnes)
 
 
-def load_config_file() -> Dict[str, float]:
+def load_config_file(f: Path) -> Dict[str, float]:
     file_str = ""
-    with open('LePALoCT config.json') as config_file:
+    with open(f) as config_file:
         for line in config_file:
             file_str += line.strip()
     print(f'#real scoring: {loads(file_str)}')
@@ -919,7 +919,7 @@ def main():
     dictionary: Dict[int, str] = translations['FR']
     for f in p.iterdir():
         if f.name[:15] == 'LePALoCT config':
-            scoring: Dict[str, float] = load_config_file()
+            scoring: Dict[str, float] = load_config_file(f)
             break
     else:
         scoring: Dict[str, float] = {'accuracy': 0, 'alive': 0.125, 'area': 0.0, 'bul_damages': 0.0004,
